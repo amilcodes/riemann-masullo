@@ -66,8 +66,12 @@ theorem continuous_halfShift (u : LogL2) : Continuous fun h ↦ halfShift h u :=
   exact hw.smul ht
 
 /-- The next stage is the image of the difference by one actual logarithmic period. -/
-def stagePeriodDifference (p : ℝ) : LogL2 →L[ℂ] LogL2 :=
+@[expose] def stagePeriodDifference (p : ℝ) : LogL2 →L[ℂ] LogL2 :=
   halfShift (Real.log p) - ContinuousLinearMap.id ℂ LogL2
+
+/-- Evaluation of the actual period-difference operator. -/
+theorem stagePeriodDifference_apply (p : ℝ) (u : LogL2) :
+    stagePeriodDifference p u = halfShift (Real.log p) u - u := rfl
 
 private theorem stagePeriodDifference_ae (T : Finset ℕ) {p : ℕ}
     (hp : 0 < p) (hmem : p ∉ T) {F : LogL2} {f : 𝓢(ℝ, ℂ)}
