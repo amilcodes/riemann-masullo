@@ -1,6 +1,7 @@
 module
 
 public import RiemannMasullo.Ch10_TraceSpectral.Sec4b
+import RiemannMasullo.Ch10_TraceSpectral.Sec3_FractionalLineRows
 import RiemannMasullo.AppB_AnalyticNT.Sec4b
 import RiemannMasullo.Ch04_PeriodicSchauderBases.Sec5
 import RiemannMasullo.Ch10_TraceSpectral.Sec1
@@ -929,6 +930,49 @@ theorem spectralStripGeometricKernel_summable_lineEnergy (f : BruhatCompactSuppo
   have hh := hbound (site z) s (by simp [s])
   simpa [site, param, s, add_sub_add_right_eq_sub] using hh
 
+/-- The actual unitary-line Mellin derivatives have polynomial envelopes about every
+zero ordinate whose coefficients are summable jointly over all angular characters and zeros.
+Changing the unitary basepoint shifts both the zero and its multiplier by the same amount. -/
+theorem exists_summable_spectralLine_deriv_envelope (f : BruhatCompactSupport C𝔽)
+    (χ : PontryaginDual C₁ → PontryaginDual C𝔽) (hχ : IsSpectralBasepointChoice χ)
+    (a α : ℝ) :
+    ∃ (n : ℕ) (w : zeros(F, χ, a, α) → ℝ), Summable w ∧ (∀ z, 0 ≤ w z) ∧
+      ∀ z t, ‖deriv (fun u : ℝ ↦ M(f, (χ z.val.1), ((u : ℂ) * Complex.I))) t‖ ≤
+        w z * (1 + |t - z.val.2.2|) ^ n := by
+  classical
+  let π : IdeleGroup (𝓞 F) F →ₜ* C𝔽 := ⟨QuotientGroup.mk' _, continuous_quotient_mk'⟩
+  let τ := π.comp ⟨canonicalIdeleNormSection F, canonicalIdeleNormSection_continuous F⟩
+  have hτ : Function.RightInverse τ (ideleClassNorm F) := canonicalIdeleNormSection_rightInverse F
+  choose ψ v hres hchart using fun ω ↦ geometricLineEnergy_recenter τ hτ (χ ω)
+  let param (z : zeros(F, χ, a, α)) : ℂ := ((a + z.val.2.1 : ℝ) : ℂ) + (z.val.2.2 : ℂ) * Complex.I
+  let site (z : zeros(F, χ, a, α)) : physicalZeros(τ) :=
+    ⟨(ψ z.val.1, param z + (v z.val.1 : ℂ) * Complex.I),
+      geometricLineEnergy_divisor_pos (χ z.val.1) (ψ z.val.1).val _ _ (hchart z.val.1) z.property.2⟩
+  have hinj : Function.Injective site := by
+    intro x y he
+    have hψ : ψ x.val.1 = ψ y.val.1 := congrArg (fun z : physicalZeros(τ) ↦ z.val.1) he
+    have hω : x.val.1 = y.val.1 := by
+      ext u : 1
+      have hx : χ x.val.1 u.val = x.val.1 u := DFunLike.congr_fun (hχ x.val.1) u
+      have hy : χ y.val.1 u.val = y.val.1 u := DFunLike.congr_fun (hχ y.val.1) u
+      exact hx.symm.trans (((hres x.val.1 u).symm.trans
+        (congrArg (fun θ : unitChars(τ) ↦ θ.val u.val) hψ)).trans ((hres y.val.1 u).trans hy))
+    have hp : param x + (v x.val.1 : ℂ) * Complex.I = param y + (v y.val.1 : ℂ) * Complex.I :=
+      congrArg (fun z : physicalZeros(τ) ↦ z.val.2) he
+    rw [hω, add_left_inj] at hp
+    apply Subtype.ext
+    refine Prod.ext hω (Prod.ext ?_ ?_)
+    · simpa [param] using congrArg Complex.re hp
+    · simpa [param] using congrArg Complex.im hp
+  obtain ⟨q, hq⟩ := geometricLineEnergy_logTest f
+  obtain ⟨N, w, hw, _, hw₀, hbound⟩ := exists_summable_heckeZero_mellin_envelope τ hτ q 0
+  refine ⟨N, (fun z ↦ w (site z)), hw.comp_injective hinj, (fun z ↦ hw₀ (site z)), ?_⟩
+  intro z t
+  rw [hq, hchart z.val.1]
+  let u := (t : ℂ) * Complex.I + (v z.val.1 : ℂ) * Complex.I
+  have hh := hbound (site z) u (by simp [u])
+  simpa [site, param, u, add_sub_add_right_eq_sub] using hh
+
 end LineEnergy
 
 variable (eχ : PontryaginDual (ideleClassNorm F).ker ↪ ℕ) (e : zeros(F, χ, a, α) ↪ ℕ × ℕ)
@@ -1099,6 +1143,71 @@ theorem spectralStripGeometricKernel_blocks_bddAbove_of_lineEnergy_bound
   spectralStripGeometricKernel_blocks_bddAbove_of_lineEnergy a hα hs φ ha χ eχ e x f
     hχ he horder hb hline htwo henergy (spectralStripGeometricKernel_summable_lineEnergy φ χ hχ a α)
 
+/-- Paper: Theorem 10.4.3.5(2), p. 472, at zero width and fractional order `1 < s < 2`.
+The scalar costs of the actual geometric rank-one rows are summable.
+The proof uses the Bessel comparison for the orthogonal cardinal lift, exact residual-energy
+cancellation, and the joint Hecke-zero envelope. No spacing condition is imposed on the zeros.
+This proves the stated specialization; the recorded bound for general widths remains open. -/
+theorem spectralStripGeometricKernel_summable_rows_fractional_line
+    (hline : α = 0) (hs₂ : s < 2) :
+    Summable (fun z : zeros(F, χ, a, α) ↦ ∑ m : Fin (jetCount(z)),
+      ‖(f jet(z, m)).comp (Θ₀).mkQL‖ * ‖Gₐ (Aφ (Sₐ(x jet(z, m))))‖) := by
+  subst α
+  let count (z : zeros(F, χ, a, 0)) :=
+    spectralStripMultiplicity 0 s z.val.2.1 (order(χ, a, z.val)).untop₀.toNat
+  let jet₀ (z : zeros(F, χ, a, 0)) (m : Fin (count z)) : SpectralStripJetIndex χ a 0 s :=
+    ⟨(z.val.1, z.val.2.1, z.val.2.2, m.val), m.isLt⟩
+  obtain ⟨n, w, hw, hw₀, hbound⟩ := exists_summable_spectralLine_deriv_envelope φ χ hχ a 0
+  have hθ : 1 / 2 < s / 2 := by linarith
+  have hθ₀ : 0 ≤ s / 2 := by linarith
+  let K := ‖fractionalProbe (s / 2) hθ 0‖ ^ 2 *
+    (8 * (s / 2) * ((2 : ℝ) ^ (s / 2 - 1 / 2)) ^ 2)
+  let P := (8 : ℝ) ^ n * (n.factorial : ℝ) * Real.exp (1 / 8)
+  let C := Real.sqrt K * P
+  have hK : 0 ≤ K := by dsimp [K]; positivity
+  have hC : 0 ≤ C := by dsimp [C, P]; positivity
+  apply (hw.mul_left C).of_nonneg_of_le
+    (fun z ↦ Finset.sum_nonneg fun _ _ ↦ mul_nonneg (norm_nonneg _) (norm_nonneg _))
+  intro z
+  have hz : z.val.2.1 = 0 := by linarith only [z.property.1.1, z.property.1.2]
+  have hcount : count z ≤ 1 := by
+    dsimp only [count]
+    rw [spectralStripMultiplicity_boundary hα (Or.inr hz), spectralBoundaryMultiplicity]
+    exact (Nat.min_le_right _ _).trans (Nat.ceil_le.mpr (by linarith))
+  calc
+    _ ≤ ∑ _m : Fin (count z), C * w z := by
+      apply Finset.sum_le_sum
+      intro m _
+      rw [spectralStripGeometricKernel_output_eq_sub_of_one_jet a hα hs φ ha χ eχ e x f hχ he horder hb z m hcount]
+      have he := fractionalLine_residual_row_sq_le_of_deriv_envelope hs hs₂ a χ hχ x f hb.1 hb.2 φ
+        (jet₀ z m) (hw₀ z) n (by
+          intro t
+          change ‖deriv (fractionalLineMultiplier (χ z.val.1) φ) t‖ ≤ _
+          rw [funext (fractionalLineMultiplier_eq_twist (χ z.val.1) φ)]
+          exact hbound z t)
+      apply (sq_le_sq₀ (mul_nonneg (norm_nonneg _) (norm_nonneg _)) (mul_nonneg hC (hw₀ z))).mp
+      calc
+        _ ≤ ‖fractionalProbe (s / 2) hθ 0‖ ^ 2 *
+            (8 * (s / 2) * ((2 : ℝ) ^ (s / 2 - 1 / 2)) ^ 2 * (w z * P) ^ 2) := by
+          simpa only [jet₀, fractionalLineMultiplier_eq_twist, hz, Complex.ofReal_zero, zero_add, P] using he
+        _ = (C * w z) ^ 2 := by
+          simp only [C, mul_pow, Real.sq_sqrt hK]
+          dsimp only [K]
+          ring
+    _ ≤ C * w z := by
+      simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+      exact mul_le_of_le_one_left (mul_nonneg hC (hw₀ z)) (by exact_mod_cast hcount)
+
+/-- Paper: Theorem 10.4.3.5(2), p. 472, restricted to zero width and `1 < s < 2`.
+The actual geometric zero blocks have uniformly bounded arbitrary finite trace-norm sums. -/
+theorem spectralStripGeometricKernel_blocks_bddAbove_fractional_line
+    (hline : α = 0) (hs₂ : s < 2) :
+    BddAbove (range fun K : Finset zeros(F, χ, a, α) ↦ traceNorm (∑ z ∈ K, geometricBlock(z))) :=
+  spectralStripGeometricKernel_blocks_bddAbove_of_summable_rows a hα hs φ ha χ eχ e x f
+    hχ he horder hb
+    (spectralStripGeometricKernel_summable_rows_fractional_line a hα hs φ ha χ eχ e x f
+      hχ he horder hb hline hs₂)
+
 /-- Paper: Theorem 10.4.3.5(2), p. 472. For each zero `z` of the strip, let `R_z` be the
 finite-rank operator `v ↦ ∑ₘ f_{z,m}(q v) • P^geom_a(A(φ)(S_a x_{z,m}))` on the Sobolev space,
 summed over the jets kept at `z`; here `q` is the quotient map and `S_a` its isometric section.
@@ -1139,6 +1248,20 @@ theorem spectralStripGeometricKernel_cauchy : Cauchy (Filter.map geometricRectan
       (-α) α s hI hs₀).exists.choose.toContinuousLinearEquiv.toContinuousLinearMap
     (Θ₀).mkQL e _ _ _ f _ (fun _ ↦ rfl)
     (spectralStripGeometricKernel_blocks_bddAbove a hα hs φ ha χ eχ e x f hχ he horder hb)
+
+/-- Paper: Theorem 10.4.3.5(2), p. 472, restricted to zero width and `1 < s < 2`.
+The corrected geometric rectangles are Cauchy in the completed projective tensor product.
+This specialization follows from the fractional row estimate, without the recorded
+arbitrary-width geometric bound. -/
+theorem spectralStripGeometricKernel_cauchy_fractional_line
+    (hline : α = 0) (hs₂ : s < 2) : Cauchy (Filter.map geometricRectangles atTop) :=
+  spectralStripGeometricKernel_cauchy_of_blocks
+    (modulatedIntervalSobolev_dual (continuousIdeleClassNorm F : IdeleClassGroup (𝓞 F) F →ₜ* ℝ≥0ˣ)
+      ⟨isProperMap_ideleClassNorm F, ideleClassNorm_ne_one (F := F)⟩ (ideleClassTamagawaMeasure F)
+      (-α) α s hI hs₀).exists.choose.toContinuousLinearEquiv.toContinuousLinearMap
+    (Θ₀).mkQL e _ _ _ f _ (fun _ ↦ rfl)
+    (spectralStripGeometricKernel_blocks_bddAbove_fractional_line a hα hs φ ha χ eχ e x f
+      hχ he horder hb hline hs₂)
 
 /-- Paper: Theorem 10.4.3.5(2)–(3), p. 472. The corrected ambient net converges to a kernel
 representing convolution after projection (p. 473) exactly when its geometric rectangles are Cauchy.
