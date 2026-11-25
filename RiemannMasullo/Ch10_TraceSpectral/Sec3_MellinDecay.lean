@@ -94,7 +94,7 @@ private theorem bruhatCompactSupport_mellin_frequency_pow_le_of_weight_orbitDeri
 Mellin coefficient as the original coefficient times the negative multiplier of the
 quasi-character. Copy of the private `bruhatMellin_directionalTest` of
 `AppB_AnalyticNT/Sec4b.lean`. -/
-private theorem bruhatCompactSupport_mellin_frequency_pow_le_of_weight_test (μ : Measure G)
+theorem exists_bruhatCompactSupport_directionalMellinDerivative (μ : Measure G)
     [μ.IsHaarMeasure] [SFinite μ] (X : LCATopologicalLie G) (f : 𝒟(G))
     (hf : Continuous f.val) :
     ∃ F : 𝒟(G), ∀ (c : QuasiCharacter G) (v : ℂ),
@@ -155,7 +155,7 @@ theorem bruhatCompactSupport_mellin_frequency_pow_le_of_weight (μ : Measure G)
       (mul_le_mul_of_nonneg_left (hc x) (norm_nonneg _))
   | succ n ih =>
     obtain ⟨D, hD⟩ :=
-      bruhatCompactSupport_mellin_frequency_pow_le_of_weight_test μ b f (hcont f)
+      exists_bruhatCompactSupport_directionalMellinDerivative μ b f (hcont f)
     obtain ⟨K, hK⟩ := ih D
     refine ⟨K, fun c hc ↦ ?_⟩
     have hd := hasDerivAt_bruhatDirectionalDeriv b

@@ -403,4 +403,36 @@ theorem sLocalTraceSharpMass_integrated_stripTrace_defect
   · exact integrableOn_const (by simp)
   · exact hi.1
 
+/-- A positive divisor site has centered real offset strictly below one half in absolute value. -/
+theorem spectralStrip_zero_offset_lt_half (χ : PontryaginDual C₁ → PontryaginDual C𝔽) (z : Sites(χ)) :
+    |z.val.2.1| < (1 / 2 : ℝ) :=
+  site_interior χ z
+
+/-- The full-width Hilbert trace is the unordered sum over all positive-order sites. -/
+theorem hasSum_halfTwistStripTrace_full (χ : PontryaginDual C₁ → PontryaginDual C𝔽)
+    (hχ : IsSpectralBasepointChoice χ) (φ : BruhatCompactSupport C𝔽) :
+    HasSum (fun z : Sites(χ) ↦ (mult(χ, z) : ℂ) * sample(φ, χ, z))
+      (halfTwistStripTrace (by norm_num : (0 : ℝ) ≤ 1 / 2) (by norm_num : (1 : ℝ) < 3) φ) :=
+  hasSum_full χ hχ φ
+
+/-- The finite-cutoff sharp orbital mass, with the logarithmic divergence and the
+two polar Mellin integrals subtracted, in the global Tamagawa normalization. -/
+@[expose] def correctedSLocalTraceSharpMass (φ : BruhatCompactSupport C𝔽)
+    (f : BruhatCompactSupport Iₛ) (R : ℝ) : ℂ := corrected(f, φ, R)
+
+/-- The corrected sharp orbital mass tends to minus the full-width quotient trace. -/
+theorem sLocalTraceSharpMass_tendsto_neg_halfTwistStripTrace
+    (φ : BruhatCompactSupport C𝔽)
+    (hPic : Subsingleton (CommRing.Pic ((S : Set V).integer F)))
+    (hRam : ∀ v : V, differentIdeal ℤ (𝓞 F) ≤ v.asIdeal → v ∈ S)
+    (hOutside : ∀ (a : outsideIntegralIdeleUnits F S) (c : C𝔽),
+      φ.val (QuotientGroup.mk a.val * c) = φ.val c)
+    {B : ℝ} (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
+    (hS : ∀ v : V, v ∉ S → B ≤ (v.asIdeal.absNorm : ℝ))
+    (f : BruhatCompactSupport Iₛ)
+    (hLift : ∀ g : Iₛ, HasSum (fun ξ : Hₛ ↦ f.val (ξ.val * g)) (φ.val (classAtS(g)))) :
+    Tendsto (fun R : ℝ ↦ correctedSLocalTraceSharpMass φ f R) atTop
+      (𝓝 (-halfTwistStripTrace (F := F) (by norm_num : (0 : ℝ) ≤ 1 / 2) (by norm_num : (1 : ℝ) < 3) φ)) :=
+  corrected_sharp_limit φ hPic hRam hOutside hB hS f hLift
+
 end RiemannMasullo

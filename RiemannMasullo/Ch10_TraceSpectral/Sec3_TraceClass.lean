@@ -276,7 +276,7 @@ private theorem uniform_one_add_sum_pow_mul_le {ι : Type*} [Fintype ι] (x : ι
 subgroup of the test that lies in the norm-one classes. This is the argument of the private
 `idelicExplicitFormula_summable_spectral_characters_annihilator` of `AppB_AnalyticNT/Sec4b`,
 proved again here because that lemma is private. -/
-private theorem uniform_active_eq_one_of_period (φ : BruhatCompactSupport C𝔽) (kg : Subgroup C𝔽)
+theorem bruhatCompactSupport_mellin_eq_one_on_period_of_ne_zero (φ : BruhatCompactSupport C𝔽) (kg : Subgroup C𝔽)
     (hkg : IsBruhatGoodSubgroup kg) (hinv : ∀ h : kg, ∀ x, φ.val (h.val * x) = φ.val x)
     (ψ : PontryaginDual C𝔽) (w : ℂ)
     (hw : (∫ g : C𝔽, φ.val g * ideleClassNormTwist (F := F) ψ w g ∂μ𝔽) ≠ 0) (h : C𝔽)
@@ -390,7 +390,7 @@ theorem exists_spectralLevel (τ : ℝ≥0ˣ →ₜ* C𝔽) (hτ : RightInverse 
     refine le_trans ?_ (hcount T)
     refine le_trans (Set.encard_mono ?_) (Subtype.val_injective.injOn.encard_image).le
     rintro ψ ⟨hψ, ⟨w, hw⟩, hκ⟩
-    exact ⟨⟨ψ, hψ⟩, ⟨fun u hu ↦ uniform_active_eq_one_of_period φ kg hkg hinv ψ w hw u hu,
+    exact ⟨⟨ψ, hψ⟩, ⟨fun u hu ↦ bruhatCompactSupport_mellin_eq_one_on_period_of_ne_zero φ kg hkg hinv ψ w hw u hu,
       fun j ↦ (hfb ψ j).trans hκ⟩, rfl⟩
   · -- The decay, along the section and along each of the flows.
     obtain ⟨K0, hK0⟩ := bruhatCompactSupport_mellin_frequency_pow_le φ
