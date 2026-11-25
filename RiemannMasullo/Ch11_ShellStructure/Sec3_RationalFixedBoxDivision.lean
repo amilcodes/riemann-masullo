@@ -3,6 +3,7 @@ module
 public import RiemannMasullo.Ch11_ShellStructure.Sec3_RationalFixedBox
 public import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 public import Mathlib.Analysis.Calculus.SmoothSeries
+public import Mathlib.Analysis.SpecialFunctions.Complex.Circle
 public import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 
 /-! # Exact smaller-box division of a rational Schwartz source
@@ -12,8 +13,9 @@ logarithmic Fourier profile vanishes, the bounded inward geometric series
 becomes an actual Schwartz profile with band reduced by `p`. At zero the
 logarithmic moment, rather than another ordinary value, is the additional
 condition which keeps the divided test polar. The theorem starts at these
-real profile conditions; it does not identify them with the earlier-stage
-normalized theta Mellin rows or assert a full cardinal decomposition. -/
+real profile conditions. The earlier Euler factors are canceled separately
+on the nonzero mesh; the passage from empty-stage theta rows to the real
+profile and the full cardinal decomposition are not asserted here. -/
 
 public noncomputable section
 
@@ -396,5 +398,62 @@ theorem exists_smaller_box_stage {p : ℕ} (hp : 1 < p) (T : Finset ℕ)
   refine ⟨g, hg0, hgF0, hgbox, fun x ↦ ?_⟩
   rw [hfg]
   exact stage_difference_dilate T hT (zero_lt_one.trans hp) hmem g hg0 x
+
+/-- Iterating the actual logarithmic translation identity, not a formal Euler product. -/
+theorem fourier_dampedStage_prod (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (ξ : ℝ)
+    (hT : ∀ q ∈ T, 0 < q) (hi : ∀ U ⊆ T, Integrable (dampedStage U f)) :
+    𝓕 (dampedStage T f) ξ = (∏ q ∈ T, (1 - (Real.fourierChar (Real.log q * ξ) : ℂ))) *
+      𝓕 (dampedStage ∅ f) ξ := by
+  induction T using Finset.induction_on with
+  | empty => simp
+  | @insert q T hq ih =>
+    have hsub : T ⊆ insert q T := Finset.subset_insert _ _
+    rw [fourier_dampedStage_insert T (hT q (Finset.mem_insert_self ..)) hq f (hi T hsub),
+      ih (fun r hr => hT r (hsub hr)) (fun U hU => hi U (hU.trans hsub)),
+      Finset.prod_insert hq, mul_assoc]
+
+/-- Distinct prime meshes meet only at the origin. Absolute values remove both
+integer signs before exponentiation, leaving ordinary natural prime powers. -/
+theorem prime_mesh_ne {p q : ℕ} (hp : p.Prime) (hq : q.Prime) (hpq : p ≠ q)
+    {j : ℤ} (hj : j ≠ 0) (k : ℤ) : (j : ℝ) / Real.log p ≠ (k : ℝ) / Real.log q := by
+  have lp : 0 < Real.log (p : ℝ) := Real.log_pos (by exact_mod_cast hp.one_lt)
+  have lq : 0 < Real.log (q : ℝ) := Real.log_pos (by exact_mod_cast hq.one_lt)
+  intro h
+  have ha := congrArg abs ((div_eq_div_iff lp.ne' lq.ne').mp h)
+  have he : (j.natAbs : ℝ) * Real.log q = (k.natAbs : ℝ) * Real.log p := by
+    simpa only [Nat.cast_natAbs, Int.cast_abs, abs_mul, abs_of_pos lp, abs_of_pos lq] using ha
+  have hpow : (q : ℝ) ^ j.natAbs = (p : ℝ) ^ k.natAbs := by
+    simpa only [Real.exp_nat_mul, Real.exp_log (show (0 : ℝ) < p by exact_mod_cast hp.pos),
+      Real.exp_log (show (0 : ℝ) < q by exact_mod_cast hq.pos)] using congrArg Real.exp he
+  have hn : q ^ j.natAbs = p ^ k.natAbs := by exact_mod_cast hpow
+  have hd : q ∣ p ^ k.natAbs := hn ▸ dvd_pow_self q (by simpa using hj : j.natAbs ≠ 0)
+  exact hpq ((Nat.prime_dvd_prime_iff_eq hq hp).mp (hq.dvd_of_dvd_pow hd)).symm
+
+/-- The earlier Euler factor has no zero at a nonzero mesh point of a fresh prime. -/
+theorem prime_mesh_euler_prod_ne_zero (T : Finset ℕ) {p : ℕ} (hp : p.Prime) (hpT : p ∉ T)
+    (hT : ∀ q ∈ T, q.Prime) {j : ℤ} (hj : j ≠ 0) :
+    (∏ q ∈ T, (1 - (Real.fourierChar (Real.log q * ((j : ℝ) / Real.log p)) : ℂ))) ≠ 0 := by
+  apply Finset.prod_ne_zero_iff.mpr
+  intro q hq hz
+  let x := Real.log q * ((j : ℝ) / Real.log p)
+  have hc : Real.fourierChar x = 1 := Subtype.ext (sub_eq_zero.mp hz).symm
+  rw [Real.fourierChar_apply', Circle.exp_eq_one] at hc
+  obtain ⟨k, hk⟩ := hc
+  have hx : x = k := by
+    apply mul_left_cancel₀ (show (2 * Real.pi : ℝ) ≠ 0 by positivity)
+    simpa only [mul_comm (k : ℝ)] using hk
+  apply prime_mesh_ne hp (hT q hq) (by rintro rfl; exact hpT hq) hj k
+  apply (eq_div_iff (Real.log_pos (show (1 : ℝ) < q by exact_mod_cast (hT q hq).one_lt)).ne').mpr
+  simpa only [x, mul_comm (Real.log (q : ℝ))] using hx
+
+/-- At a fresh nonzero mesh point, vanishing of the actual earlier-stage row
+is equivalent to vanishing of the empty-stage row. -/
+theorem fourier_dampedStage_prime_mesh_eq_zero_iff (T : Finset ℕ) {p : ℕ} (hp : p.Prime)
+    (hpT : p ∉ T) (hT : ∀ q ∈ T, q.Prime) (f : 𝓢(ℝ, ℂ))
+    (hi : ∀ U ⊆ T, Integrable (dampedStage U f)) {j : ℤ} (hj : j ≠ 0) :
+    𝓕 (dampedStage T f) ((j : ℝ) / Real.log p) = 0 ↔
+      𝓕 (dampedStage ∅ f) ((j : ℝ) / Real.log p) = 0 := by
+  rw [fourier_dampedStage_prod T f _ (fun q hq => (hT q hq).pos) hi,
+    mul_eq_zero, or_iff_right (prime_mesh_euler_prod_ne_zero T hp hpT hT hj)]
 
 end RiemannMasullo.RationalPacket
