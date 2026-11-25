@@ -746,4 +746,81 @@ theorem closedStages_decreasing_and_separating {X : ℝ} (hX : 0 < X) (p : ℕ �
 theorem dampedStage_apply (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
     dampedStage T f x = (Real.exp (-x/2) : ℂ) * stage T f x := by rfl
 
+/-- A single Schwartz seminorm controls the actual logarithmic stage on every
+ray. Together with the fixed lower support edge, this gives continuity of the
+source-to-Hilbert map on each genuine Fourier box. -/
+theorem norm_stage_le_schwartzSeminorm (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q)
+    (f : 𝓢(ℝ, ℂ)) (hf : f 0 = 0) (x : ℝ) :
+    ‖stage T f x‖ ≤ ((T.powerset.card : ℝ) * (∑' n : ℤ, 1 / (n : ℝ)^2)) *
+      SchwartzMap.seminorm ℝ 2 0 f * Real.exp (-(3/2)*x) := by
+  let c := SchwartzMap.seminorm ℝ 2 0 f * (∑' n : ℤ, 1 / (n : ℝ)^2)
+  have hc : 0 ≤ c := mul_nonneg (apply_nonneg ..) (tsum_nonneg fun _ ↦ by positivity)
+  have hd : ‖dampedStage T f x‖ ≤ (T.powerset.card : ℝ) * c * Real.exp (-2*x) := by
+    rw [dampedStage_eq_sum]
+    calc
+      _ ≤ ∑ U ∈ T.powerset, ‖(-1 : ℂ)^U.card *
+          theta f (Real.exp x * ∏ p ∈ U, (p : ℝ))‖ := norm_sum_le _ _
+      _ ≤ ∑ U ∈ T.powerset, c * Real.exp (-2*x) := by
+        apply Finset.sum_le_sum
+        intro U hU
+        let a : ℝ := ∏ p ∈ U, (p : ℝ)
+        have ha : 1 ≤ a := Finset.one_le_prod₀ fun p hp ↦ by
+          exact_mod_cast hT p ((Finset.mem_powerset.mp hU) hp)
+        rw [norm_mul, norm_pow, norm_neg, norm_one, one_pow, one_mul]
+        change ‖theta f (Real.exp x * a)‖ ≤ _
+        have he : c / (Real.exp x)^2 = c * Real.exp (-2*x) := by
+          rw [show -2*x = -(x+x) by ring, Real.exp_neg, Real.exp_add, ← pow_two, div_eq_mul_inv]
+        rw [← he]
+        refine (theta_bound f hf (mul_pos (Real.exp_pos x) (zero_lt_one.trans_le ha))).trans ?_
+        apply div_le_div_of_nonneg_left hc (by positivity)
+        exact pow_le_pow_left₀ (Real.exp_pos x).le
+          (le_mul_of_one_le_right (Real.exp_pos x).le ha) 2
+      _ = _ := by rw [Finset.sum_const, nsmul_eq_mul, ← mul_assoc]
+  have he : stage T f x = (Real.exp (x/2) : ℂ) * dampedStage T f x := by
+    rw [dampedStage_apply, ← mul_assoc, ← Complex.ofReal_mul, ← Real.exp_add,
+      show x/2 + -x/2 = 0 by ring, Real.exp_zero, Complex.ofReal_one, one_mul]
+  rw [he, norm_mul, Complex.norm_real, Real.norm_eq_abs, abs_of_pos (Real.exp_pos _)]
+  refine (mul_le_mul_of_nonneg_left hd (Real.exp_pos _).le).trans_eq ?_
+  rw [show Real.exp (x/2) * ((T.powerset.card : ℝ) * c * Real.exp (-2*x)) =
+    (T.powerset.card : ℝ) * c * (Real.exp (x/2) * Real.exp (-2*x)) by ring,
+    ← Real.exp_add, show x/2 + -2*x = -(3/2)*x by ring]
+  dsimp only [c]
+  ring
+
+/-- Every actual rational stage has a polar representative with even Fourier
+transform in the same input box. Odd sources contribute nothing to the integer
+theta sum; no closure or enlargement of the box is used. -/
+theorem exists_even_source_same_stage (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q)
+    (U : ℝ) (f : 𝓢(ℝ, ℂ)) (hf : f 0 = 0) (h0 : (𝓕 f) 0 = 0)
+    (hb : ∀ r, U < |r| → (𝓕 f) r = 0) :
+    ∃ g : 𝓢(ℝ, ℂ), g 0 = 0 ∧ (𝓕 g) 0 = 0 ∧
+      (∀ r, (𝓕 g) (-r) = (𝓕 g) r) ∧ (∀ r, U < |r| → (𝓕 g) r = 0) ∧
+      ∀ x, stage T g x = stage T f x := by
+  let R : 𝓢(ℝ, ℂ) := SchwartzMap.compCLMOfContinuousLinearEquiv ℂ
+    (LinearIsometryEquiv.neg ℝ).toContinuousLinearEquiv f
+  have hR (x : ℝ) : R x = f (-x) := by rfl
+  have hRF (x : ℝ) : (𝓕 R) x = (𝓕 f) (-x) := by
+    rw [SchwartzMap.fourier_coe, SchwartzMap.fourier_coe]
+    exact Real.fourier_comp_linearIsometry (LinearIsometryEquiv.neg ℝ) f x
+  have hR0 : R 0 = 0 := by rw [hR, neg_zero, hf]
+  have ht (r : ℝ) : theta R r = theta f r := by
+    unfold theta
+    simp_rw [hR]
+    simpa only [Equiv.neg_apply, Int.cast_neg, neg_mul] using
+      (Equiv.neg ℤ).tsum_eq (fun n : ℤ ↦ f ((n : ℝ)*r))
+  have hs (x : ℝ) : stage T R x = stage T f x := by
+    simp only [stage, ht]
+  let g : 𝓢(ℝ, ℂ) := (2⁻¹ : ℂ) • (f+R)
+  have hgf (x : ℝ) : (𝓕 g) x = (2⁻¹ : ℂ) * ((𝓕 f) x + (𝓕 f) (-x)) := by
+    simp only [g, FourierTransform.fourier_smul, FourierTransform.fourier_add, smul_apply, add_apply, hRF, smul_eq_mul]
+  refine ⟨g, by simp [g, hf, hR0], by simp [hgf, h0], ?_, ?_, ?_⟩
+  · intro r
+    simp only [hgf, neg_neg, add_comm]
+  · intro r hr
+    rw [hgf, hb r hr, hb (-r) (by simpa only [abs_neg] using hr), add_zero, mul_zero]
+  · intro x
+    rw [show g = (2⁻¹ : ℂ) • (f+R) from rfl, stage_smul,
+      stage_add T hT f R hf hR0, hs, smul_eq_mul]
+    ring
+
 end RiemannMasullo.RationalPacket
