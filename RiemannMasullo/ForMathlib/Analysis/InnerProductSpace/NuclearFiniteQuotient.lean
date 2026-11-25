@@ -60,16 +60,14 @@ theorem norm_hilbertTrace_le_finrank_mul_opNorm [FiniteDimensional ℂ H]
         exact (A.le_opNorm (b i)).trans_eq (by rw [b.orthonormal.norm_eq_one i, mul_one]))
     _ = _ := by simp
 
-/-- A finite quotient with a constant diagonal constrains every nuclear
-approximant to the original operator. The error is measured in operator norm;
-the quotient coordinates may be nonorthogonal. -/
-theorem finite_quotient_diagonal_le_nuclear_approximation (m : ℕ)
+/-- The algebraic trace of a finite quotient constrains every nuclear
+approximant in the original operator norm, without a coordinate conditioning factor. -/
+theorem finite_quotient_trace_le_nuclear_approximation (m : ℕ)
     (L : H →L[ℂ] (Fin m → ℂ)) (hL : Surjective L)
     (A F : H →L[ℂ] H) (hF : IsNuclearOperator F)
     (B : (Fin m → ℂ) →ₗ[ℂ] (Fin m → ℂ))
-    (hAB : ∀ x, L (A x) = B (L x)) (c : ℂ)
-    (hdiag : ∀ i : Fin m, B (Pi.single i 1) i = c) :
-    (m : ℝ) * ‖c‖ ≤ traceNorm ⟨F,hF⟩ + (m : ℝ) * ‖A - F‖ := by
+    (hAB : ∀ x, L (A x) = B (L x)) :
+    ‖∑ i : Fin m, B (Pi.single i 1) i‖ ≤ traceNorm ⟨F,hF⟩ + (m : ℝ) * ‖A - F‖ := by
   classical
   let K : ClosedSubmodule ℂ H := ⟨L.ker, L.isClosed_ker⟩
   let : IsClosed (K.toSubmodule : Set H) := K.isClosed
@@ -86,13 +84,12 @@ theorem finite_quotient_diagonal_le_nuclear_approximation (m : ℕ)
     change e (q (A (J x))) = B (e x)
     rw [heq, hAB, ← heq, hqJ]
   obtain ⟨hn,htrace⟩ := nuclear_trace_finiteBasis b AQ
-  have htrace' : hilbertTrace ⟨AQ,hn⟩ = (m : ℂ) * c := by
+  have htrace' : hilbertTrace ⟨AQ,hn⟩ = ∑ i : Fin m, B (Pi.single i 1) i := by
     rw [htrace]
-    have hd (i : Fin m) : b.repr (AQ (b i)) i = c := by
-      rw [show b = Basis.ofEquivFun e from rfl, Basis.ofEquivFun_repr_apply, hEA]
-      simp only [Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply]
-      exact hdiag i
-    simp only [hd, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+    apply Finset.sum_congr rfl
+    intro i _
+    rw [show b = Basis.ofEquivFun e from rfl, Basis.ofEquivFun_repr_apply, hEA]
+    simp only [Basis.coe_ofEquivFun, LinearEquiv.apply_symm_apply]
   have hqnorm : ‖q‖ ≤ 1 := by
     apply ContinuousLinearMap.opNorm_le_bound _ zero_le_one
     intro x
@@ -135,8 +132,23 @@ theorem finite_quotient_diagonal_le_nuclear_approximation (m : ℕ)
     rw [← htr, he, map_add, htr, htr]
   have hnorm := (norm_add_le (hilbertTrace ⟨FQ,hFQ⟩) (hilbertTrace ⟨AQ-FQ,hE⟩)).trans
     (add_le_add hFQbound hEbound)
-  rw [← ht, htrace', norm_mul, Complex.norm_natCast] at hnorm
+  rw [← ht, htrace'] at hnorm
   exact hnorm
+
+
+/-- A finite quotient with a constant diagonal constrains every nuclear
+approximant to the original operator. The error is measured in operator norm;
+the quotient coordinates may be nonorthogonal. -/
+theorem finite_quotient_diagonal_le_nuclear_approximation (m : ℕ)
+    (L : H →L[ℂ] (Fin m → ℂ)) (hL : Surjective L)
+    (A F : H →L[ℂ] H) (hF : IsNuclearOperator F)
+    (B : (Fin m → ℂ) →ₗ[ℂ] (Fin m → ℂ))
+    (hAB : ∀ x, L (A x) = B (L x)) (c : ℂ)
+    (hdiag : ∀ i : Fin m, B (Pi.single i 1) i = c) :
+    (m : ℝ) * ‖c‖ ≤ traceNorm ⟨F,hF⟩ + (m : ℝ) * ‖A - F‖ := by
+  simpa only [hdiag, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+    nsmul_eq_mul, norm_mul, Complex.norm_natCast] using
+    finite_quotient_trace_le_nuclear_approximation m L hL A F hF B hAB
 
 /-- A finite quotient with a constant diagonal forces the corresponding linear
 lower bound on the trace norm of the upstairs nuclear operator. The quotient
