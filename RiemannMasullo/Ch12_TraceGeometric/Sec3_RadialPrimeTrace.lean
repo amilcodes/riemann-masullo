@@ -216,7 +216,8 @@ theorem hasSum_centeredVonMangoldt_sub_radialStripTrace (H : ℝ → ℂ)
   rw [Nat.cast_sub hm]
   ring
 
-private theorem radial_zero_in_strip (z : Z) : |z.val.re - 1 / 2| < (1 / 2 : ℝ) := by
+/-- Every positive divisor site of completed zeta is strictly inside the critical strip. -/
+theorem completedZetaZero_mem_centeredCriticalStrip (z : Z) : |z.val.re - 1 / 2| < (1 / 2 : ℝ) := by
   obtain ⟨hL, ha⟩ := continuedCompletedHeckeL_spec X
   have upper (w : ℂ) (hw : 0 < order(X, w)) : w.re < 1 := by
     rcases le_or_gt w.re 0 with h | h
@@ -248,7 +249,7 @@ private theorem radial_full_chart (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) 
     HasSum (fun z : sites(τ) ↦ term(φ, z)) (V * centeredVonMangoldtValue H) := by
   let Y := sites(τ)
   let e (z : Z) : Y := ⟨(⟨1, by simp⟩, z.val),
-    by rw [divisor_rat_principal_eq_zeta]; exact z.property, radial_zero_in_strip z⟩
+    by rw [divisor_rat_principal_eq_zeta]; exact z.property, completedZetaZero_mem_centeredCriticalStrip z⟩
   have ei : Injective e := fun _ _ h ↦ Subtype.ext (congrArg (fun y : Y ↦ y.val.2) h)
   apply (ei.hasSum_iff ?_).mp
   · apply ((hasSum_zetaZeros_centeredVonMangoldt H hH hc hp).mul_left V).congr_fun

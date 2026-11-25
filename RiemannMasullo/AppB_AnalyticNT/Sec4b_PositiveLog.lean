@@ -128,6 +128,24 @@ private theorem positiveLog_schwartz (G : ℝ → ℂ) (hG : ContDiff ℝ (∞) 
     (Asymptotics.isBigO_zero _ _), fun j _ _ ↦ ((hder j).filter_mono atBot_le_cocompact).trans_isBigO
     (Asymptotics.isBigO_zero _ _)⟩
 
+/-- Paper: Proposition B.2.1.9(4), p. 599. A smooth compact positive-log
+profile has arbitrarily rapid height decay on any closed left half-plane. -/
+theorem bilateralLaplace_positiveLog_heightBound (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hc : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0) (b : ℝ) (n : ℕ) (hn : 1 ≤ n) :
+    ∃ K > 0, ∀ z : ℂ, z.re ≤ b → z.im ≠ 0 → ‖bilateralLaplace H z‖ ≤ K / |z.im| ^ n := by
+  obtain ⟨f, hf, hdec⟩ := positiveLog_schwartz H hH hc
+  have hsup : tsupport (f : ℝ → ℂ) ⊆ Ioi 0 := by
+    rw [hf]
+    exact tsupport_mul_subset_left.trans hp
+  obtain ⟨K, hK, h⟩ := mellin_heightBound_left_of_exponentialDecay f hdec hsup (b - 1 / 2) n hn
+  refine ⟨K, hK, fun z hz hy ↦ ?_⟩
+  have hv := h (z.re - 1 / 2) (sub_le_sub_right hz _) z.im hy
+  have he : ((z.re - 1 / 2 : ℝ) : ℂ) + (z.im : ℂ) * Complex.I = z - 1 / 2 := by
+    apply Complex.ext <;> simp
+  change ‖mellin (fun r : ℝ ↦ f (Real.log r)) (((z.re - 1 / 2 : ℝ) : ℂ) + (z.im : ℂ) * Complex.I)‖ ≤ _ at hv
+  rw [he, hf, positiveLog_mellin] at hv
+  exact hv
+
 /-- Paper: Theorem B.4.2.2, p. 616. For a compact smooth profile on the positive
 logarithmic axis, the signed Hecke divisor equals minus the uncentered prime-power
 sum minus the one-sided gamma integrals. This includes the shifted poles of norm
