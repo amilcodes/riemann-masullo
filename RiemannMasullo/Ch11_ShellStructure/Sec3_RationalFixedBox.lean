@@ -325,12 +325,19 @@ theorem stage_eq_zero_before_box {f : 𝓢(ℝ, ℂ)} {X x : ℝ} (hX : 0 < X) (
       _ < 1 := hx'
   rw [theta_eq_zero_of_lt (mul_pos (Real.exp_pos _) (hP U hu)) h0 hsupp hmul, mul_zero]
 
-private theorem dampedStage_eq_sum (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
+/-- The damped stage is the untwisted finite sum of actual theta translates. -/
+theorem dampedStage_eq_sum (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
     dampedStage T f x = ∑ U ∈ T.powerset, (-1 : ℂ) ^ U.card *
       theta f (Real.exp x * ∏ p ∈ U, (p : ℝ)) := by
   unfold dampedStage stage
   rw [← mul_assoc, ← Complex.ofReal_mul, ← Real.exp_add, show -x/2+x/2 = 0 by ring,
     Real.exp_zero, Complex.ofReal_one, one_mul]
+
+/-- Equal genuine stages give equal damped stages on the same log ray. -/
+theorem dampedStage_congr {T U : Finset ℕ} {f g : 𝓢(ℝ, ℂ)}
+    (h : ∀ x, stage T f x = stage U g x) : dampedStage T f = dampedStage U g := by
+  funext x
+  simp only [dampedStage, h]
 
 private theorem measurable_dampedStage (T : Finset ℕ) (hT : ∀ p ∈ T, 1 ≤ p)
     (f : 𝓢(ℝ, ℂ)) (h0 : f 0 = 0) : Measurable (dampedStage T f) := by
