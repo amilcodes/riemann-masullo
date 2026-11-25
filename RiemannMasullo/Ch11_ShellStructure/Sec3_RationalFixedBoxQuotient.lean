@@ -27,6 +27,12 @@ local notation "E" => closedStageSubmodule X T hT
 def fixedBoxDenominator : ClosedSubmodule ℂ E :=
   (closedStageSubmodule X (insert p T) hTp).comap (E).toSubmodule.subtypeL
 
+/-- Membership in the actual denominator is membership of the ambient representative
+in the next closed stage. -/
+theorem mem_fixedBoxDenominator_iff (u : E) :
+    u ∈ fixedBoxDenominator X T hT p hTp ↔
+      (u : LogL2) ∈ closedStageSubmodule X (insert p T) hTp := by rfl
+
 local notation "N" => ClosedSubmodule.toSubmodule (fixedBoxDenominator X T hT p hTp)
 
 instance fixedBoxDenominator_isClosed : IsClosed (N : Set E) :=

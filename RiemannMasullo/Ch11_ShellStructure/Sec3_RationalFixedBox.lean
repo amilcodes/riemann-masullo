@@ -471,7 +471,7 @@ private theorem ae_eq_zero_of_packet_fourier_samples {f : ℝ → ℂ}
   rw [show 𝓕 f = 0 from funext hzero, eLpNorm_zero] at h
   exact (eLpNorm_eq_zero_iff two_ne_zero).mp h.symm
 
-scoped notation "LogL2" => Lp ℂ 2 (volume : Measure ℝ)
+abbrev LogL2 := Lp ℂ 2 (volume : Measure ℝ)
 
 private def lowerSupport (a : ℝ) : Set LogL2 :=
   { f | ∀ᵐ x ∂volume, x < a → f x = 0 }
@@ -569,7 +569,7 @@ def stageGenerators (X : ℝ) (T : Finset ℕ) : Set LogL2 :=
 
 /-- Membership in the genuine generator family is an actual polar Schwartz
 representation in the specified Fourier box. -/
-theorem mem_stageGenerators_iff {X : ℝ} {T : Finset ℕ} {F : LogL2} :
+theorem mem_stageGenerators_iff (X : ℝ) (T : Finset ℕ) (F : LogL2) :
     F ∈ stageGenerators X T ↔
       ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
         (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
@@ -745,19 +745,5 @@ theorem closedStages_decreasing_and_separating {X : ℝ} (hX : 0 < X) (p : ℕ �
 /-- The actual exponential damping used in the logarithmic Mellin rows. -/
 theorem dampedStage_apply (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
     dampedStage T f x = (Real.exp (-x/2) : ℂ) * stage T f x := by rfl
-
-/-- Membership in the smooth rational stage records the source box before
-completion and its actual almost-everywhere theta profile. -/
-theorem mem_stageGenerators_iff (X : ℝ) (T : Finset ℕ) (F : LogL2) :
-    F ∈ stageGenerators X T ↔ ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
-      (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
-      F =ᵐ[volume] stage T f := by rfl
-
-/-- The fixed lower support edge persists in the genuine Hilbert closure. -/
-theorem closedStageSubmodule_supported {X : ℝ} (hX : 0 < X)
-    (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {F : LogL2}
-    (hF : F ∈ closedStageSubmodule X T hT) :
-    ∀ᵐ x ∂volume, x < -Real.log X → F x = 0 :=
-  closure_stageGenerators_supported hX T hT hF
 
 end RiemannMasullo.RationalPacket

@@ -235,18 +235,56 @@ theorem packetRow_eq_zero_of_mem_next {X : ℝ} (hX : 0 < X) (T : Finset ℕ)
   · rw [ite_eq_right hn, halfLineMellinJet_stage_closure_mesh hX (insert p T) hTp
       (Finset.mem_insert_self ..) n hF, zero_div]
 
-/-- Every integer mode has a genuine fixed-box stage vector biorthogonal to
-all the bounded normalized rows, including the zero mode. -/
-theorem exists_fixedBox_biorthogonal_stage {X : ℝ} (hX : 0 < X) (T : Finset ℕ)
+/-- On an actual polar even source in the earlier box, all bounded normalized
+rows vanish exactly when its stage has a genuine representative in the next,
+smaller source box. This is an exact smooth denominator statement. -/
+theorem stageGenerators_insert_iff_packetRows_zero {X : ℝ} (hX : 0 < X)
+    (T : Finset ℕ) (hT : ∀ q ∈ T, q.Prime) {p : ℕ} (hp : p.Prime) (hpT : p ∉ T)
+    (f : 𝓢(ℝ, ℂ)) (hf : f 0 = 0) (h0 : (𝓕 f) 0 = 0)
+    (he : ∀ r, (𝓕 f) (-r) = (𝓕 f) r)
+    (hb : ∀ r, X / (∏ q ∈ T, (q : ℝ)) < |r| → (𝓕 f) r = 0)
+    (F : LogL2) (hF : F =ᵐ[volume] stage T f) :
+    F ∈ stageGenerators X (insert p T) ↔ ∀ n : ℤ, packetRow X T p n F = 0 := by
+  constructor
+  · intro hn n
+    exact packetRow_eq_zero_of_mem_next hX T hT hp hpT (subset_closure hn) n
+  · intro hz
+    have hprod : 0 < ∏ q ∈ T, (q : ℝ) := Finset.prod_pos fun q hq ↦ by
+      exact_mod_cast (hT q hq).pos
+    have hU := div_pos hX hprod
+    have hi := stage_integrable_subsets hU T hT f hf h0 hb
+    have hempty (n : ℤ) : 𝓕 (dampedStage ∅ f) ((n : ℝ) / Real.log p) = 0 :=
+      (packetRow_stage hX T hT hp hpT f hf h0 hb F hF n).symm.trans (hz n)
+    obtain ⟨g, hg, hg0, hgb, hfg⟩ := exists_smaller_box_stage_of_theta_rows hp T hT hpT hU
+      f hf h0 he hb (fun n _ ↦ by
+        rw [fourier_dampedStage_prod T f _ (fun q hq ↦ (hT q hq).pos) hi, hempty n, mul_zero])
+      (by simpa using (thetaBoundaryMellin_fourier f 0).trans (by simpa using hempty 0))
+    refine (mem_stageGenerators_iff X (insert p T) F).mpr ⟨g, hg, hg0, ?_, ?_⟩
+    · intro r hr
+      apply hgb r
+      simpa only [Finset.prod_insert hpT, mul_comm (p : ℝ), div_div] using hr
+    · exact hF.trans (ae_of_all _ hfg)
+
+/-- Every integer mode has a polar, even Fourier representative in the original
+source box, with exactly its prescribed bounded rows. -/
+theorem exists_fixedBox_biorthogonal_even_stage {X : ℝ} (hX : 0 < X) (T : Finset ℕ)
     (hT : ∀ q ∈ T, q.Prime) {p : ℕ} (hp : p.Prime) (hpT : p ∉ T) :
-    ∃ v : ℤ → LogL2, (∀ n, v n ∈ stageGenerators X T) ∧
+    ∃ v : ℤ → LogL2,
+      (∀ n, ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
+        (∀ r, (𝓕 f) (-r) = (𝓕 f) r) ∧
+        (∀ r, X / (∏ q ∈ T, (q : ℝ)) < |r| → (𝓕 f) r = 0) ∧
+        v n =ᵐ[volume] stage T f) ∧
       ∀ j n : ℤ, packetRow X T p j (v n) = if j = n then 1 else 0 := by
   classical
   have hprod : 0 < ∏ q ∈ T, (q : ℝ) := Finset.prod_pos fun q hq ↦ by
     exact_mod_cast (hT q hq).pos
   obtain ⟨ε, hε, f, hf⟩ := exists_fixedBox_theta_cardinals
     (show (1 : ℝ) < p by exact_mod_cast hp.one_lt) (div_pos hX hprod)
-  have hdata : ∀ n : ℤ, ∃ F : LogL2, F ∈ stageGenerators X T ∧
+  have hdata : ∀ n : ℤ, ∃ F : LogL2,
+      (∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
+        (∀ r, (𝓕 f) (-r) = (𝓕 f) r) ∧
+        (∀ r, X / (∏ q ∈ T, (q : ℝ)) < |r| → (𝓕 f) r = 0) ∧
+        F =ᵐ[volume] stage T f) ∧
       ∀ j : ℤ, packetRow X T p j F = if j = n then 1 else 0 := by
     intro n
     obtain ⟨hf0, hF0, hFc, he, hb, hrows⟩ := hf (-n)
@@ -255,7 +293,7 @@ theorem exists_fixedBox_biorthogonal_stage {X : ℝ} (hX : 0 < X) (T : Finset �
       (fun q hq ↦ (hT q hq).one_lt.le) hf0 hF0 hband).1
     let F := hm.toLp (stage T (f (-n)))
     have hF : F =ᵐ[volume] stage T (f (-n)) := hm.coeFn_toLp
-    refine ⟨F, (mem_stageGenerators_iff X T F).mpr ⟨f (-n), hf0, hF0, hband, hF⟩, fun j ↦ ?_⟩
+    refine ⟨F, ⟨f (-n), hf0, hF0, he, hband, hF⟩, fun j ↦ ?_⟩
     rw [packetRow_stage hX T hT hp hpT (f (-n)) hf0 hF0 hband F hF j]
     have h := hrows (-j)
     have hphase : (((2 * Real.pi * (((-j : ℤ) : ℝ) / Real.log p) : ℝ) : ℂ) * Complex.I) =
@@ -264,6 +302,17 @@ theorem exists_fixedBox_biorthogonal_stage {X : ℝ} (hX : 0 < X) (T : Finset �
     simpa only [neg_inj] using h
   choose v hv hrow using hdata
   exact ⟨v, hv, fun j n ↦ hrow n j⟩
+
+/-- Every integer mode has a genuine fixed-box stage vector biorthogonal to
+all the bounded normalized rows, including the zero mode. -/
+theorem exists_fixedBox_biorthogonal_stage {X : ℝ} (hX : 0 < X) (T : Finset ℕ)
+    (hT : ∀ q ∈ T, q.Prime) {p : ℕ} (hp : p.Prime) (hpT : p ∉ T) :
+    ∃ v : ℤ → LogL2, (∀ n, v n ∈ stageGenerators X T) ∧
+      ∀ j n : ℤ, packetRow X T p j (v n) = if j = n then 1 else 0 := by
+  obtain ⟨v, hv, hrow⟩ := exists_fixedBox_biorthogonal_even_stage hX T hT hp hpT
+  refine ⟨v, fun n ↦ ?_, hrow⟩
+  obtain ⟨f, hf, h0, _, hb, hF⟩ := hv n
+  exact (mem_stageGenerators_iff X T (v n)).mpr ⟨f, hf, h0, hb, hF⟩
 
 /-- Paper: (11.3.1.3)–(11.3.1.4), pp. 494–496. The actual completed rational
 fixed-box packet contains all integer cardinal classes, with continuous

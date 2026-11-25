@@ -104,8 +104,8 @@ theorem stagePeriodDifference_image_generators {X : ℝ} (hX : 0 < X)
   have hpR : (0 : ℝ) < p := by exact_mod_cast hpN
   apply le_antisymm
   · rintro G ⟨F, hFgen, rfl⟩
-    obtain ⟨f, hf0, hfF0, hfb, hF⟩ := mem_stageGenerators_iff.mp hFgen
-    apply mem_stageGenerators_iff.mpr
+    obtain ⟨f, hf0, hfF0, hfb, hF⟩ := (mem_stageGenerators_iff _ _ _).mp hFgen
+    apply (mem_stageGenerators_iff _ _ _).mpr
     let g := dilate ((p : ℝ)⁻¹) (inv_pos.mpr hpR) f
     refine ⟨g, by simp [g, hf0], by simp [g, fourier_dilate, hfF0], ?_,
       stagePeriodDifference_ae T hpN hmem hF⟩
@@ -116,7 +116,7 @@ theorem stagePeriodDifference_image_generators {X : ℝ} (hX : 0 < X)
     rw [Finset.prod_insert hmem, mul_comm (p : ℝ), ← div_div] at hr
     exact (div_lt_iff₀ hpR).mp hr
   · intro G hGgen
-    obtain ⟨f, hf0, hfF0, hfb, hG⟩ := mem_stageGenerators_iff.mp hGgen
+    obtain ⟨f, hf0, hfF0, hfb, hG⟩ := (mem_stageGenerators_iff _ _ _).mp hGgen
     let g := dilate (p : ℝ) hpR f
     have hg0 : g 0 = 0 := by simp [g, hf0]
     have hgF0 : (𝓕 g) 0 = 0 := by simp [g, fourier_dilate, hfF0]
@@ -128,7 +128,7 @@ theorem stagePeriodDifference_image_generators {X : ℝ} (hX : 0 < X)
     have hgLp := (stage_memLp_and_dampedStage_integrable hX T hT hg0 hgF0 hgb).1
     let F := hgLp.toLp (stage T g)
     have hF : (F : ℝ → ℂ) =ᵐ[volume] stage T g := hgLp.coeFn_toLp
-    refine ⟨F, mem_stageGenerators_iff.mpr ⟨g, hg0, hgF0, hgb, hF⟩, Lp.ext ?_⟩
+    refine ⟨F, (mem_stageGenerators_iff _ _ _).mpr ⟨g, hg0, hgF0, hgb, hF⟩, Lp.ext ?_⟩
     have hgg : dilate ((p : ℝ)⁻¹) (inv_pos.mpr hpR) g = f := by
       ext x
       simp only [g, dilate_apply]
@@ -210,7 +210,7 @@ band shrinks and the translated generator still belongs to the same box. -/
 theorem halfShift_mem_stageGenerators {X : ℝ} (hX : 0 < X)
     (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {h : ℝ} (hh : 0 ≤ h)
     {F : LogL2} (hF : F ∈ stageGenerators X T) : halfShift h F ∈ stageGenerators X T := by
-  obtain ⟨f, hf0, hfF0, hband, hrep⟩ := mem_stageGenerators_iff.mp hF
+  obtain ⟨f, hf0, hfF0, hband, hrep⟩ := (mem_stageGenerators_iff _ _ _).mp hF
   let r := Real.exp (-h)
   have hr : 0 < r := Real.exp_pos _
   have hr1 : r ≤ 1 := Real.exp_le_one_iff.mpr (neg_nonpos.mpr hh)
@@ -223,7 +223,7 @@ theorem halfShift_mem_stageGenerators {X : ℝ} (hX : 0 < X)
     rw [fourier_dilate, hband, smul_zero]
     rw [abs_div, abs_of_pos hr]
     exact (lt_div_iff₀ hr).mpr hy
-  apply mem_stageGenerators_iff.mpr
+  apply (mem_stageGenerators_iff _ _ _).mpr
   refine ⟨g, by simp [g, hf0], by simp [g, fourier_dilate, hfF0],
     fun y hy ↦ hshrink y ((mul_le_of_le_one_right hU.le hr1).trans_lt hy), ?_⟩
   have ht := (measurePreserving_add_right volume (-h)).quasiMeasurePreserving.ae_eq_comp hrep
