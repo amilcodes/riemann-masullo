@@ -555,4 +555,11 @@ theorem smaller_box_stage_iff_normalized_theta_rows {p : ℕ} (hp : p.Prime) (T 
     apply exists_smaller_box_stage_of_theta_rows hp T hT hmem hU f hf hF0 he hb hrows
     simpa using (thetaBoundary_fourier_eq f 0).trans hzero
 
+/-- The negative imaginary theta--Mellin line agrees with the Fourier transform
+of the actual empty-stage damped profile. -/
+theorem thetaBoundaryMellin_fourier (f : 𝓢(ℝ, ℂ)) (ξ : ℝ) :
+    thetaBoundaryMellin f (((-2 * Real.pi * ξ : ℝ) : ℂ) * Complex.I) =
+      𝓕 (dampedStage ∅ f) ξ :=
+  thetaBoundary_fourier_eq f ξ
+
 end RiemannMasullo.RationalPacket
