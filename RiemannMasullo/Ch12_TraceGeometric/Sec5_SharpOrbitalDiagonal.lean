@@ -66,15 +66,12 @@ local notation "diag(" hα "," hs "," φ "," hK "," U ")" =>
   (fun x : C𝔽 ↦ dSequenceKernelSmoothening μ𝔽 U
     (globalStripGeometricKernel (F := F) (1 / 2) hα hs₁(hs) φ hK) (x, x))
 
-/-- Paper: Theorem 12.5.1.1, p. 520, first paragraph. If the global test vanishes at norm
-one and its support has norm and inverse norm strictly below the residue cardinality of a
-finite place, its entire restriction to this place is zero. -/
-theorem traceComparison_finiteRestriction_eq_zero
-    (φ : BruhatCompactSupport C𝔽) (hφ : ∀ g : C₁, φ.val g = 0)
-    (v : V) {B : ℝ}
+/-- The radial support at a prescribed place can meet only its valuation-zero shell. -/
+private theorem traceComparison_valuation_eq_zero
+    (φ : BruhatCompactSupport C𝔽) (v : V) {B : ℝ}
     (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
-    (hv : B ≤ (v.asIdeal.absNorm : ℝ)) (u : (v.adicCompletion F)ˣ) :
-    φ.val (finiteClass(v) u) = 0 := by
+    (hv : B ≤ (v.asIdeal.absNorm : ℝ)) (u : (v.adicCompletion F)ˣ)
+    (hne : φ.val (finiteClass(v) u) ≠ 0) : WithZero.log (Valued.v u.val) = 0 := by
   let c := finiteClass(v) u
   let q : ℝ := v.asIdeal.absNorm
   let k := WithZero.log (Valued.v u.val)
@@ -86,23 +83,85 @@ theorem traceComparison_finiteRestriction_eq_zero
     exact_mod_cast (HeightOneSpectrum.one_lt_absNorm v).le
   have hqpos := lt_of_lt_of_le zero_lt_one hq
   have hz : ‖u.val‖ = q ^ k := norm_adicCompletion_eq_zpow F v u.ne_zero
-  change φ.val c = 0
-  by_contra hne
   obtain ⟨hlt, hinv⟩ := hB c (subset_tsupport _ hne)
   rw [hn, hz] at hlt hinv
   rcases lt_trichotomy k 0 with hk | hk | hk
   · have h := zpow_le_zpow_right₀ hq (show k ≤ -1 by omega)
     rw [zpow_neg_one] at h
-    exact (not_lt_of_ge hv) ((le_inv_comm₀ hqpos (zpow_pos hqpos k)).mpr h |>.trans_lt hinv)
-  · have heq : ideleClassNorm F c = 1 := by
-      apply Units.ext
-      apply NNReal.eq
-      change normR(c) = 1
-      simpa only [hk, zpow_zero] using hn.trans hz
-    exact hne (hφ ⟨c, heq⟩)
+    exact ((not_lt_of_ge hv) ((le_inv_comm₀ hqpos (zpow_pos hqpos k)).mpr h |>.trans_lt hinv)).elim
+  · exact hk
   · have h := zpow_le_zpow_right₀ hq (show (1 : ℤ) ≤ k by omega)
     rw [zpow_one] at h
-    exact (not_lt_of_ge hv) (h.trans_lt hlt)
+    exact ((not_lt_of_ge hv) (h.trans_lt hlt)).elim
+
+/-- Paper: Theorem 12.5.1.1, p. 520, first paragraph. If the global test vanishes at norm
+one and its support has norm and inverse norm strictly below the residue cardinality of a
+finite place, its entire restriction to this place is zero. -/
+theorem traceComparison_finiteRestriction_eq_zero
+    (φ : BruhatCompactSupport C𝔽) (hφ : ∀ g : C₁, φ.val g = 0)
+    (v : V) {B : ℝ}
+    (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
+    (hv : B ≤ (v.asIdeal.absNorm : ℝ)) (u : (v.adicCompletion F)ˣ) :
+    φ.val (finiteClass(v) u) = 0 := by
+  by_contra hne
+  have hk := traceComparison_valuation_eq_zero φ v hB hv u hne
+  have hnorm : ‖u.val‖ = 1 := by
+    simp only [norm_adicCompletion_eq_zpow F v u.ne_zero, hk, zpow_zero]
+  apply hne (hφ ⟨_, ?_⟩)
+  apply Units.ext
+  apply NNReal.eq
+  change normR(finiteClass(v) u) = 1
+  have hn : normR(finiteClass(v) u) = ‖u.val‖ := by
+    simp only [ideleClassNorm_ofAdicCompletion]
+    rfl
+  exact hn.trans hnorm
+
+/-- A local integer unit at a place outside S is a complementary integral idele. -/
+private theorem traceComparison_ofAdicCompletion_mem_outside
+    (v : V) (hv : v ∉ S) (u : (v.adicCompletion F)ˣ)
+    (hu : u ∈ (HeightOneSpectrum.adicCompletionIntegers F v).units) :
+    IdeleGroup.ofAdicCompletion (𝓞 F) F v u ∈ outsideIntegralIdeleUnits F S := by
+  classical
+  let O := fun w : V ↦ w.adicCompletionIntegers F
+  rw [mem_outsideIntegralIdeleUnits_iff]
+  refine ⟨rfl, ?_, ?_⟩
+  · intro w hw
+    change RestrictedProduct.mulSingle O v u.val w = 1
+    exact RestrictedProduct.mulSingle_eq_of_ne _ _ (ne_of_mem_of_not_mem hw hv)
+  · intro w _
+    change RestrictedProduct.mulSingle O v u.val w ∈ O w ∧
+      RestrictedProduct.mulSingle O v u⁻¹.val w ∈ O w
+    by_cases h : w = v
+    · subst w
+      rw [RestrictedProduct.mulSingle_eq_same, RestrictedProduct.mulSingle_eq_same]
+      exact ⟨hu.1, hu.2⟩
+    · rw [RestrictedProduct.mulSingle_eq_of_ne _ _ h, RestrictedProduct.mulSingle_eq_of_ne _ _ h]
+      exact ⟨(O w).one_mem, (O w).one_mem⟩
+
+/-- Paper: Theorem 12.5.1.1, p. 520 and (B.4.4.22), p. 625. At a prescribed outside place
+whose residue cardinality bounds the radial support, the restriction of an outside-unit
+invariant test is its value at the identity times the integer-unit indicator. -/
+theorem traceComparison_finiteRestriction_eq_unitsIndicator
+    (φ : BruhatCompactSupport C𝔽)
+    (hOutside : ∀ (a : outsideIntegralIdeleUnits F S) (c : C𝔽),
+      φ.val (QuotientGroup.mk a.val * c) = φ.val c)
+    (v : V) (hv : v ∉ S) {B : ℝ}
+    (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
+    (hq : B ≤ (v.asIdeal.absNorm : ℝ)) (u : (v.adicCompletion F)ˣ) :
+    φ.val (finiteClass(v) u) = φ.val 1 *
+      ((HeightOneSpectrum.adicCompletionIntegers F v).units : Set _).indicator (fun _ ↦ (1 : ℂ)) u := by
+  classical
+  by_cases hu : u ∈ (HeightOneSpectrum.adicCompletionIntegers F v).units
+  · rw [indicator_of_mem hu, mul_one]
+    let a := IdeleGroup.ofAdicCompletion (𝓞 F) F v u
+    exact (congrArg φ.val (mul_one (finiteClass(v) u)).symm).trans
+      (hOutside ⟨a, traceComparison_ofAdicCompletion_mem_outside v hv u hu⟩ 1)
+  · rw [indicator_of_notMem hu, mul_zero]
+    by_contra hne
+    have hk := traceComparison_valuation_eq_zero φ v hB hq u hne
+    apply hu
+    rw [HeightOneSpectrum.adicCompletionIntegers.mem_units_iff_valued_eq_one,
+      ← WithZero.exp_log (Valued.v.ne_zero_iff.mpr u.ne_zero), hk, WithZero.exp_zero]
 
 private theorem traceComparison_volume_ne_zero :
     (volS : ℂ) ≠ 0 := by
@@ -176,5 +235,70 @@ theorem sLocalTraceSharpMass_tendsto_globalDiagonal_of_half_le
     field_simp [hvol]
     linear_combination -hpole + volS * hdiag + volS * hfull
   exact ⟨hD, hconstant ▸ (hsharp.sub_const P).const_mul (volF / volS)⟩
+
+local notation "stripQ(" hα ", " hs ")" =>
+  spectralSobolevQuotient F (1 / 2) (hStrip(hα)) (le_of_lt (zero_lt_one.trans hs))
+local notation "stripAction(" hα ", " hs ", " φ ")" =>
+  spectralConvolution (F := F) (1 / 2) (hStrip(hα)) (le_of_lt (zero_lt_one.trans hs)) φ
+
+/-- Paper: (12.4.1.25)–(12.4.1.28), p. 519, and (12.5.1.4), p. 520. After subtracting the
+identity logarithm and both local dilation moments, the normalized sharp orbital mass converges
+to minus the wide-strip quotient trace for an arbitrary compact global test.
+Deviation: The strip contains the critical strip. The nuclear operator represents the actual
+quotient convolution at Sobolev order greater than one. -/
+theorem sLocalTraceSharpMass_logSubtracted_tendsto_neg_spectralTrace_of_half_le
+    (φ : BruhatCompactSupport C𝔽)
+    (hPic : Subsingleton (CommRing.Pic ((S : Set V).integer F)))
+    (hRam : ∀ v : V, differentIdeal ℤ (𝓞 F) ≤ v.asIdeal → v ∈ S)
+    (hOutside : ∀ (a : outsideIntegralIdeleUnits F S) (c : C𝔽),
+      φ.val (QuotientGroup.mk a.val * c) = φ.val c)
+    {B : ℝ} (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
+    (hS : ∀ v : V, v ∉ S → B ≤ (v.asIdeal.absNorm : ℝ))
+    (f : BruhatCompactSupport Iₛ)
+    (hLift : ∀ g : Iₛ, HasSum (fun ξ : Hₛ ↦ f.val (ξ.val * g)) (φ.val (classAtS(g))))
+    {α s : ℝ} (hα : 1 / 2 ≤ α) (hs : 1 < s)
+    (T : nuclearEndomorphisms stripQ((one_half_pos.trans_le hα).le, hs))
+    (hT : T.val = stripAction((one_half_pos.trans_le hα).le, hs, φ)) :
+    let P := (∫ g : Iₛ, f.val g * rootS(g) ∂μₛ) + ∫ g : Iₛ, f.val g / rootS(g) ∂μₛ
+    Tendsto (fun R : ℝ ↦ volF / volS *
+      ((∑' ξ : Hₛ, sLocalTraceSharpMass f ξ R) - volS * φ.val 1 * (Real.log R : ℂ) - P))
+      atTop (𝓝 (-hilbertTrace T)) := by
+  classical
+  intro P
+  obtain ⟨a, b, M, ha, hb, hM, hlim⟩ :=
+    sLocalTraceSharpMass_asymptotic φ hPic hRam hOutside f hLift
+  choose d hd hPV using fun v : V ↦ finiteConnesWeilPrincipalValue_unitsIndicator v
+  let b' : finTest := fun v ↦ if h : v ∈ S then b ⟨v, h⟩ else φ.val 1 • d v
+  have hb' (v : V) (u : (v.adicCompletion F)ˣ) : (b' v).val u = φ.val (finiteClass(v) u) := by
+    by_cases h : v ∈ S
+    · simpa only [b', dite_eq_left h] using hb ⟨v, h⟩ u
+    · simp only [b', dite_eq_right h]
+      change φ.val 1 * (d v).val u = _
+      rw [hd v, traceComparison_finiteRestriction_eq_unitsIndicator φ hOutside v h hB (hS v h) u]
+  have hvan (v : V) (hv : v ∉ S) : finPV(v, b' v) = 0 := by
+    have hdiff : multiplicity v.asIdeal (differentIdeal ℤ (𝓞 F)) = 0 :=
+      multiplicity_eq_zero_of_not_dvd fun h ↦ hv (hRam v (Ideal.dvd_iff_le.mp h))
+    have hzero := hPV v
+    rw [hdiff] at hzero
+    simp only [Nat.cast_zero, zero_mul, Complex.ofReal_zero, neg_zero] at hzero
+    simp only [b', dite_eq_right hv, map_smul, smul_eq_mul]
+    rw [mul_left_comm, hzero, mul_zero]
+  have hsum : (∑' v : V, finPV(v, b' v)) = ∑ v : S, finPV(v.val, b v) := by
+    rw [tsum_eq_sum (s := S) hvan, ← Finset.sum_coe_sort]
+    exact Finset.sum_congr rfl fun v _ ↦ by simp [b', v.property]
+  have hsharp : Tendsto (fun R : ℝ ↦ (∑' ξ : Hₛ, sLocalTraceSharpMass f ξ R) -
+      volS * φ.val 1 * (Real.log R : ℂ)) atTop
+      (𝓝 (volS * (archPV(a) + ∑ v : S, finPV(v.val, b v)))) :=
+    hlim.congr' (hM.mono fun _ h ↦ congrArg (fun z : ℂ ↦ z - _) h.tsum_eq.symm)
+  have hfull := spectralStripTrace_eq_localTerms_of_half_le φ hα hs a b' ha hb' T hT
+  rw [hsum] at hfull
+  have hpole : volF * P = volS * (pole(φ, (1 / 2)) + pole(φ, (-1 / 2))) :=
+    sLocalTraceLift_global_polar_sum hPic φ hOutside f hLift
+  have hvol : (volS : ℂ) ≠ 0 := traceComparison_volume_ne_zero
+  have hconstant : volF / volS * (volS * (archPV(a) + ∑ v : S, finPV(v.val, b v)) - P) =
+      -hilbertTrace T := by
+    field_simp [hvol]
+    linear_combination -hpole + volS * hfull
+  exact hconstant ▸ (hsharp.sub_const P).const_mul (volF / volS)
 
 end RiemannMasullo
