@@ -143,6 +143,19 @@ def stage (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) : ℂ :=
   (Real.exp (x/2) : ℂ) * ∑ U ∈ T.powerset,
     (-1 : ℂ) ^ U.card * theta f (Real.exp x * ∏ p ∈ U, (p : ℝ))
 
+/-- A positive real dilation translates the log profile and rescales its half twist. -/
+theorem stage_dilate_real (T : Finset ℕ) {r : ℝ} (hr : 0 < r) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
+    stage T (dilate r hr f) x =
+      (Real.exp (-(Real.log r)/2) : ℂ) * stage T f (x + Real.log r) := by
+  have hexp : (Real.exp (-(Real.log r)/2) : ℂ) *
+      (Real.exp ((x + Real.log r)/2) : ℂ) = (Real.exp (x/2) : ℂ) := by
+    rw [← Complex.ofReal_mul, ← Real.exp_add]
+    congr 2
+    ring
+  unfold stage
+  rw [← mul_assoc, hexp]
+  simp only [theta_dilate hr, Real.exp_add, Real.exp_log hr, mul_left_comm, mul_comm]
+
 theorem stage_add (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) (f g : 𝓢(ℝ, ℂ))
     (hf : f 0 = 0) (hg : g 0 = 0) (x : ℝ) :
     stage T (f+g) x = stage T f x + stage T g x := by
@@ -546,6 +559,14 @@ def stageGenerators (X : ℝ) (T : Finset ℕ) : Set LogL2 :=
   { F | ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
       (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
       F =ᵐ[volume] stage T f }
+
+/-- Membership in the genuine generator family is an actual polar Schwartz
+representation in the specified Fourier box. -/
+theorem mem_stageGenerators_iff {X : ℝ} {T : Finset ℕ} {F : LogL2} :
+    F ∈ stageGenerators X T ↔
+      ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
+        (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
+        (F : ℝ → ℂ) =ᵐ[volume] stage T f := Iff.rfl
 
 /-- The polar generator family is already a linear subspace. -/
 def stageSubmodule (X : ℝ) (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) : Submodule ℂ LogL2 where
