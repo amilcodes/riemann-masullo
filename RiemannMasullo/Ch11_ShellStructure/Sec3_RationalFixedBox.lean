@@ -143,6 +143,19 @@ def stage (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) : ℂ :=
   (Real.exp (x/2) : ℂ) * ∑ U ∈ T.powerset,
     (-1 : ℂ) ^ U.card * theta f (Real.exp x * ∏ p ∈ U, (p : ℝ))
 
+/-- A positive real dilation translates the log profile and rescales its half twist. -/
+theorem stage_dilate_real (T : Finset ℕ) {r : ℝ} (hr : 0 < r) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
+    stage T (dilate r hr f) x =
+      (Real.exp (-(Real.log r)/2) : ℂ) * stage T f (x + Real.log r) := by
+  have hexp : (Real.exp (-(Real.log r)/2) : ℂ) *
+      (Real.exp ((x + Real.log r)/2) : ℂ) = (Real.exp (x/2) : ℂ) := by
+    rw [← Complex.ofReal_mul, ← Real.exp_add]
+    congr 2
+    ring
+  unfold stage
+  rw [← mul_assoc, hexp]
+  simp only [theta_dilate hr, Real.exp_add, Real.exp_log hr, mul_left_comm, mul_comm]
+
 theorem stage_add (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) (f g : 𝓢(ℝ, ℂ))
     (hf : f 0 = 0) (hg : g 0 = 0) (x : ℝ) :
     stage T (f+g) x = stage T f x + stage T g x := by
@@ -458,7 +471,7 @@ private theorem ae_eq_zero_of_packet_fourier_samples {f : ℝ → ℂ}
   rw [show 𝓕 f = 0 from funext hzero, eLpNorm_zero] at h
   exact (eLpNorm_eq_zero_iff two_ne_zero).mp h.symm
 
-abbrev LogL2 := Lp ℂ 2 (volume : Measure ℝ)
+scoped notation "LogL2" => Lp ℂ 2 (volume : Measure ℝ)
 
 private def lowerSupport (a : ℝ) : Set LogL2 :=
   { f | ∀ᵐ x ∂volume, x < a → f x = 0 }
@@ -554,6 +567,14 @@ def stageGenerators (X : ℝ) (T : Finset ℕ) : Set LogL2 :=
       (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
       F =ᵐ[volume] stage T f }
 
+/-- Membership in the genuine generator family is an actual polar Schwartz
+representation in the specified Fourier box. -/
+theorem mem_stageGenerators_iff {X : ℝ} {T : Finset ℕ} {F : LogL2} :
+    F ∈ stageGenerators X T ↔
+      ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
+        (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
+        (F : ℝ → ℂ) =ᵐ[volume] stage T f := Iff.rfl
+
 /-- The polar generator family is already a linear subspace. -/
 def stageSubmodule (X : ℝ) (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) : Submodule ℂ LogL2 where
   carrier := stageGenerators X T
@@ -624,6 +645,13 @@ private theorem closure_stageGenerators_supported {X : ℝ} (hX : 0 < X)
   rintro F ⟨f, -, h0, hsupp, hF⟩
   filter_upwards [hF] with x hx hxa
   exact hx.trans (stage_eq_zero_before_box hX T hT h0 hsupp hxa)
+
+/-- The fixed lower support edge persists in the genuine Hilbert closure. -/
+theorem closedStageSubmodule_supported {X : ℝ} (hX : 0 < X)
+    (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {F : LogL2}
+    (hF : F ∈ closedStageSubmodule X T hT) :
+    ∀ᵐ x ∂volume, x < -Real.log X → F x = 0 :=
+  closure_stageGenerators_supported hX T hT ((mem_closedStageSubmodule_iff X T hT F).mp hF)
 
 theorem mellinSample_stage_zeros {X : ℝ} (hX : 0 < X)
     (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {p : ℕ} (hp : 1 < p) (hpT : p ∈ T)
