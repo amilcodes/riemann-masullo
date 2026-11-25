@@ -714,4 +714,22 @@ theorem closedStages_decreasing_and_separating {X : ℝ} (hX : 0 < X) (p : ℕ �
     intro n
     exact Finset.mem_image.mpr ⟨n, Finset.mem_range.mpr (Nat.lt_succ_self n), rfl⟩
 
+/-- The actual exponential damping used in the logarithmic Mellin rows. -/
+theorem dampedStage_apply (T : Finset ℕ) (f : 𝓢(ℝ, ℂ)) (x : ℝ) :
+    dampedStage T f x = (Real.exp (-x/2) : ℂ) * stage T f x := by rfl
+
+/-- Membership in the smooth rational stage records the source box before
+completion and its actual almost-everywhere theta profile. -/
+theorem mem_stageGenerators_iff (X : ℝ) (T : Finset ℕ) (F : LogL2) :
+    F ∈ stageGenerators X T ↔ ∃ f : 𝓢(ℝ, ℂ), f 0 = 0 ∧ (𝓕 f) 0 = 0 ∧
+      (∀ y : ℝ, X / (∏ p ∈ T, (p : ℝ)) < |y| → (𝓕 f) y = 0) ∧
+      F =ᵐ[volume] stage T f := by rfl
+
+/-- The fixed lower support edge persists in the genuine Hilbert closure. -/
+theorem closedStageSubmodule_supported {X : ℝ} (hX : 0 < X)
+    (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {F : LogL2}
+    (hF : F ∈ closedStageSubmodule X T hT) :
+    ∀ᵐ x ∂volume, x < -Real.log X → F x = 0 :=
+  closure_stageGenerators_supported hX T hT hF
+
 end RiemannMasullo.RationalPacket
