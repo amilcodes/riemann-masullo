@@ -1,6 +1,7 @@
 module
 
 public import RiemannMasullo.AppB_AnalyticNT.Sec4b_PositiveLog
+public import RiemannMasullo.Ch06_LocalGlobal.Sec3
 import RiemannMasullo.Ch13_ZerosHecke.Targets
 import Mathlib.Data.Nat.Prime.Int
 public import Mathlib.NumberTheory.ArithmeticFunction.VonMangoldt
@@ -115,6 +116,28 @@ private theorem zeta_agrees (s : Complex.re ⁻¹' Ioi (1 : ℝ)) : L₀ s = com
       (Module.finrank_self ℚ), pow_one, pow_zero, mul_one, dedekindZeta_rat_eq_riemannZeta hs,
     riemannZeta_def_of_ne_zero h0]
   field_simp [Complex.Gammaℝ_ne_zero_of_re_pos (zero_lt_one.trans hs)]
+
+/-- The actual continued rational principal Hecke function is the meromorphic
+normal form of Mathlib's completed zeta on the entire plane. -/
+theorem continuedCompletedHeckeL_rat_one_eq_normalizedZeta : continuedCompletedHeckeL X = L₀ := by
+  obtain ⟨hL, ha⟩ := continuedCompletedHeckeL_spec X
+  have hZ := meromorphicNFOn_toMeromorphicNFOn completedRiemannZeta univ
+  have hnear : continuedCompletedHeckeL X =ᶠ[𝓝[≠] (2 : ℂ)] L₀ := by
+    have hn : ∀ᶠ z : ℂ in 𝓝 (2 : ℂ), 1 < z.re :=
+      (isOpen_lt continuous_const Complex.continuous_re).mem_nhds (by norm_num)
+    exact (hn.filter_mono nhdsWithin_le_nhds).mono fun z hz ↦
+      (ha ⟨z, hz⟩).trans (zeta_agrees ⟨z, hz⟩).symm
+  have ho := meromorphicOrderAt_eq_top_iff.mpr (eventuallyEq_iff_sub.mp hnear)
+  funext z
+  have hz := (hL.meromorphicOn.sub hZ.meromorphicOn).meromorphicOrderAt_eq_top_of_isPreconnected
+    isPreconnected_univ (mem_univ _) (mem_univ z) ho
+  exact (((hL (mem_univ z)).eventuallyEq_nhdsNE_iff_eventuallyEq_nhds (hZ (mem_univ z))).mp
+    (eventuallyEq_iff_sub.mpr (meromorphicOrderAt_eq_top_iff.mp hz))).eq_of_nhds
+
+/-- The positive divisor used to index the rational strip trace agrees with
+the divisor in the classical prime formula, including at the two poles. -/
+theorem divisor_rat_principal_eq_zeta : MeromorphicOn.divisor (continuedCompletedHeckeL X) univ = d₀ := by
+  rw [continuedCompletedHeckeL_rat_one_eq_normalizedZeta, zeta_meromorphic.divisor_of_toMeromorphicNFOn]
 
 private theorem principal_poles : d₀ 0 = -1 ∧ d₀ 1 = -1 ∧ ∀ z, z ≠ 0 → z ≠ 1 → 0 ≤ d₀ z := by
   have hL := meromorphicNFOn_toMeromorphicNFOn completedRiemannZeta univ
