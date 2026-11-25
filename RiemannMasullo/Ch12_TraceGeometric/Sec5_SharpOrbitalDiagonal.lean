@@ -1,6 +1,7 @@
 module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec5
+public import RiemannMasullo.Ch10_TraceSpectral.Sec4b_ProjectedKernels
 
 /-! # Comparing the sharp orbital trace and the global geometric diagonal
 
@@ -322,5 +323,48 @@ theorem sLocalTraceSharpMass_tendsto_globalDiagonal_of_half_le
   simpa only [hφ1, mul_zero, zero_mul, sub_zero] using
     sLocalTraceSharpMass_logSubtracted_tendsto_centeredGlobalDiagonal_of_half_le
       φ hPic hRam hOutside hB hS f hLift hα hs₁(hs) hK U hU hBorel
+
+/-- Paper: Theorems 12.4.1.1 and 12.5.1.1, pp. 514 and 520. Choose one S-local lift of an
+arbitrary compact global test. For every strip containing the critical strip and every Sobolev
+order greater than one, its log-subtracted sharp orbital limit equals both the Haar integral of
+the centered geometric diagonal and minus the full quotient trace.
+Deviation: The limit concerns sharp orbital masses. The projective kernel on projected inputs
+exists by the weighted-adjoint construction, and both polar moments come from the chosen lift. -/
+theorem exists_sLocalTraceLift_logSubtracted_sharpMass_eq_centeredWideDiagonal
+    (φ : BruhatCompactSupport C𝔽)
+    (hPic : Subsingleton (CommRing.Pic ((S : Set V).integer F)))
+    (hRam : ∀ v : V, differentIdeal ℤ (𝓞 F) ≤ v.asIdeal → v ∈ S)
+    (hOutside : ∀ (a : outsideIntegralIdeleUnits F S) (c : C𝔽),
+      φ.val (QuotientGroup.mk a.val * c) = φ.val c)
+    {B : ℝ} (hB : ∀ g ∈ tsupport φ.val, normR(g) < B ∧ (normR(g))⁻¹ < B)
+    (hS : ∀ v : V, v ∉ S → B ≤ (v.asIdeal.absNorm : ℝ)) :
+    ∃ f : BruhatCompactSupport Iₛ,
+      (∀ g : Iₛ, HasSum (fun ξ : Hₛ ↦ f.val (ξ.val * g)) (φ.val (classAtS(g)))) ∧
+      ∀ {α s : ℝ} (hα : 1 / 2 ≤ α) (hs : 1 < s)
+        (U : ℕ → Set C𝔽) (_hU : IsDPrimeSequence μ𝔽 U) (_hBorel : ∀ n, MeasurableSet (U n)),
+        let hK := stripTestAction_spectralProjection_has_projectiveKernel (F := F) (1 / 2)
+          (one_half_pos.trans_le hα).le (zero_le_one.trans hs.le) φ
+        let T : nuclearEndomorphisms stripQ((one_half_pos.trans_le hα).le, hs) :=
+          ⟨stripAction((one_half_pos.trans_le hα).le, hs, φ),
+            spectralStripConvolution_nuclear_of_projectiveKernel (one_half_pos.trans_le hα).le hs φ hK⟩
+        let P := (∫ g : Iₛ, f.val g * rootS(g) ∂μₛ) + ∫ g : Iₛ, f.val g / rootS(g) ∂μₛ
+        let D := fun x : C𝔽 ↦ dSequenceKernelSmoothening μ𝔽 U
+          (globalStripGeometricKernel (F := F) (1 / 2) (one_half_pos.trans_le hα).le hs φ hK) (x, x)
+        Integrable (fun x ↦ D x - φ.val 1) μ𝔽 ∧
+          (∫ x, D x - φ.val 1 ∂μ𝔽) = -hilbertTrace T ∧
+          Tendsto (fun R : ℝ ↦ volF / volS *
+            ((∑' ξ : Hₛ, sLocalTraceSharpMass f ξ R) - volS * φ.val 1 * (Real.log R : ℂ) - P))
+            atTop (𝓝 (∫ x, D x - φ.val 1 ∂μ𝔽)) := by
+  let hlift := exists_sLocalTraceLift (F := F) (S := S) hPic φ hOutside
+  let f := hlift.choose
+  have hLift : ∀ g : Iₛ, HasSum (fun ξ : Hₛ ↦ f.val (ξ.val * g)) (φ.val (classAtS(g))) :=
+    hlift.choose_spec
+  refine ⟨f, hLift, ?_⟩
+  intro α s hα hs U hU hBorel hK T P D
+  have hgeom := integral_centered_smoothenedStripGeometricKernel_diagonal
+    (one_half_pos.trans_le hα).le hs φ hK U hU hBorel
+  have horbit := sLocalTraceSharpMass_logSubtracted_tendsto_centeredGlobalDiagonal_of_half_le
+    φ hPic hRam hOutside hB hS f hLift hα hs hK U hU hBorel
+  exact ⟨hgeom.1, hgeom.2, horbit.2⟩
 
 end RiemannMasullo
