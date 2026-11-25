@@ -32,19 +32,23 @@ local notation "N" => ClosedSubmodule.toSubmodule (fixedBoxDenominator X T hT p 
 instance fixedBoxDenominator_isClosed : IsClosed (N : Set E) :=
   (fixedBoxDenominator X T hT p hTp).isClosed
 
-/-- The actual normed relative box, with the submodule quotient norm. -/
-abbrev FixedBoxQuotient := E ⧸ N
+scoped notation "FixedBoxQuotient[" x "," t "," ht "," p "," hp "]" =>
+  (closedStageSubmodule x t ht) ⧸ (ClosedSubmodule.toSubmodule (fixedBoxDenominator x t ht p hp))
 
-local notation "Q" => FixedBoxQuotient X T hT p hTp
+local notation "Q" => FixedBoxQuotient[X,T,hT,p,hTp]
 
 variable {X} (hX : 0 < X)
 
 /-- The forward shifts act on the preceding stage itself. -/
-def closedStageForwardShift (h : ℝ≥0) : E →L[ℂ] E :=
+@[expose] def closedStageForwardShift (h : ℝ≥0) : E →L[ℂ] E :=
   ((halfShift h).comp (E).toSubmodule.subtypeL).codRestrict (E).toSubmodule
     (fun u ↦ halfShift_mem_closedStage hX T hT h.property u.property)
 
 local notation "R" => closedStageForwardShift T hT hX
+
+/-- Evaluation of the restricted forward operator in the ambient Hilbert space. -/
+theorem closedStageForwardShift_apply (h : ℝ≥0) (u : E) :
+    (R h u : LogL2) = halfShift (h : ℝ) (u : LogL2) := rfl
 
 /-- Descend the forward operator through the closed submodule, using invariance
 of the next stage independently of invariance of the preceding one. -/

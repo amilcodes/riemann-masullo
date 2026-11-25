@@ -1,9 +1,6 @@
 module
 
 public import RiemannMasullo.Ch11_ShellStructure.Sec3_RationalFixedBoxQuotient
--- Reuse the closed-support proof, and unfold the stage shift only in proofs.
-import all RiemannMasullo.Ch11_ShellStructure.Sec3_RationalFixedBox
-import all RiemannMasullo.Ch11_ShellStructure.Sec3_RationalFixedBoxQuotient
 
 /-! # Bounded right input windows on the rational fixed-box quotient
 
@@ -23,14 +20,7 @@ variable (p : ℕ) (hTp : ∀ q ∈ insert p T, 1 ≤ q) (hp : 1 < p) (hmem : p 
 
 local notation "E" => closedStageSubmodule X T hT
 local notation "N" => ClosedSubmodule.toSubmodule (fixedBoxDenominator X T hT p hTp)
-local notation "Q" => FixedBoxQuotient X T hT p hTp
-
-include hX in
-/-- Every member of the completed stage has the original support floor. -/
-theorem closedStage_ae_zero_before_box (u : E) :
-    ∀ᵐ x ∂volume, x < -Real.log X → (u : LogL2) x = 0 :=
-  closure_stageGenerators_supported hX T hT
-    ((mem_closedStageSubmodule_iff X T hT u).mp u.property)
+local notation "Q" => FixedBoxQuotient[X,T,hT,p,hTp]
 
 include hX hp hmem in
 /-- The forward lift through `n` actual periods has known norm, support and class. -/
@@ -59,13 +49,13 @@ theorem exists_fixedBox_period_lift (n : ℕ) (u : E) :
   · calc
       (N).mkQL v = S t ((N).mkQL u) := (fixedBoxForwardShift_mk T hT p hTp hX t u).symm
       _ = (N).mkQL u := DFunLike.congr_fun (hid n) _
-  · change ‖halfShift (t : ℝ) (u : LogL2)‖ = _
-    rw [norm_halfShift, ht]
+  · change ‖(closedStageForwardShift T hT hX t u : LogL2)‖ = _
+    rw [closedStageForwardShift_apply, norm_halfShift, ht]
     rfl
-  · change ∀ᵐ x ∂volume, x < -Real.log X + (n : ℝ) * Real.log p →
-      halfShift (t : ℝ) (u : LogL2) x = 0
+  · dsimp only [v]
+    rw [closedStageForwardShift_apply]
     have hs := (measurePreserving_add_right volume (-(t : ℝ))).quasiMeasurePreserving.ae
-      (closedStage_ae_zero_before_box hX T hT u)
+      (closedStageSubmodule_supported hX T hT u.property)
     filter_upwards [halfShift_ae (t : ℝ) (u : LogL2), hs] with x hx hsx hcut
     change x - (t : ℝ) < -Real.log X → (u : LogL2) (x - (t : ℝ)) = 0 at hsx
     rw [hx, hsx (by rw [ht]; linarith), mul_zero]

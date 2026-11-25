@@ -464,7 +464,7 @@ private theorem ae_eq_zero_of_packet_fourier_samples {f : ℝ → ℂ}
   rw [show 𝓕 f = 0 from funext hzero, eLpNorm_zero] at h
   exact (eLpNorm_eq_zero_iff two_ne_zero).mp h.symm
 
-abbrev LogL2 := Lp ℂ 2 (volume : Measure ℝ)
+scoped notation "LogL2" => Lp ℂ 2 (volume : Measure ℝ)
 
 private def lowerSupport (a : ℝ) : Set LogL2 :=
   { f | ∀ᵐ x ∂volume, x < a → f x = 0 }
@@ -638,6 +638,13 @@ private theorem closure_stageGenerators_supported {X : ℝ} (hX : 0 < X)
   rintro F ⟨f, -, h0, hsupp, hF⟩
   filter_upwards [hF] with x hx hxa
   exact hx.trans (stage_eq_zero_before_box hX T hT h0 hsupp hxa)
+
+/-- The fixed lower support edge persists in the genuine Hilbert closure. -/
+theorem closedStageSubmodule_supported {X : ℝ} (hX : 0 < X)
+    (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {F : LogL2}
+    (hF : F ∈ closedStageSubmodule X T hT) :
+    ∀ᵐ x ∂volume, x < -Real.log X → F x = 0 :=
+  closure_stageGenerators_supported hX T hT ((mem_closedStageSubmodule_iff X T hT F).mp hF)
 
 theorem mellinSample_stage_zeros {X : ℝ} (hX : 0 < X)
     (T : Finset ℕ) (hT : ∀ q ∈ T, 1 ≤ q) {p : ℕ} (hp : 1 < p) (hpT : p ∈ T)

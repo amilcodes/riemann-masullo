@@ -22,7 +22,7 @@ variable (p : ℕ) (hTp : ∀ q ∈ insert p T, 1 ≤ q) (hX : 0 < X)
 variable (hp : 1 < p) (hmem : p ∉ T)
 
 local notation "L" => Real.log (p : ℝ)
-local notation "Q" => FixedBoxQuotient X T hT p hTp
+local notation "Q" => FixedBoxQuotient[X,T,hT,p,hTp]
 local notation "S" => fixedBoxForwardShift T hT p hTp hX
 
 include hp in
