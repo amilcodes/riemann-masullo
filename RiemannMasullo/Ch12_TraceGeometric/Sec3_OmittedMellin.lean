@@ -92,6 +92,59 @@ private theorem moving_hasSum {a : ℝ} {H : ℝ → ℂ} (hs : Summable (fun ρ
   rw [SparseLaplace.bilateralLaplace_translate]
   ring
 
+/-- An upper bound on the real parts of the active sites gives absolute
+Laplace convergence at every strictly larger exponent, with no spectral gap. -/
+theorem integrable_omitted_above_active_sites (a : ℝ) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hk : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0) {c σ : ℝ} (hσ : c < σ)
+    (hsite : ∀ ρ : Z, c < w(ρ).re → 0 < omittedOrder a ρ → bilateralLaplace H w(ρ) = 0) :
+    IntegrableOn (fun y : ℝ ↦ (Real.exp (-σ*y):ℂ)*omittedMellinTrace a H y) (Ioi 0) := by
+  let b (ρ : Z) := coef(a,H,ρ)
+  have hs : Summable b := summable_coeff a H hH hk hp
+  let f (ρ : Z) (y : ℝ) := b ρ * Complex.exp ((w(ρ)-c)*(max y 0 : ℝ))
+  have hb (ρ : Z) (y : ℝ) : ‖f ρ y‖ ≤ ‖b ρ‖ := by
+    by_cases h : c < w(ρ).re
+    · have he : b ρ = 0 := by
+        by_cases hz : omittedOrder a ρ = 0
+        · simp [b,hz]
+        · dsimp only [b]; rw [hsite ρ h (Nat.pos_of_ne_zero hz),mul_zero,mul_zero]
+      simp [f,he]
+    · dsimp only [f]
+      rw [norm_mul,Complex.norm_exp,Complex.mul_re,Complex.sub_re,Complex.ofReal_re,Complex.ofReal_im,mul_zero,sub_zero]
+      exact mul_le_of_le_one_right (norm_nonneg _) (Real.exp_le_one_iff.mpr
+        (mul_nonpos_of_nonpos_of_nonneg (sub_nonpos.mpr (le_of_not_gt h)) (le_max_right _ _)))
+  let S (y : ℝ) := ∑' ρ, f ρ y
+  have hS : Continuous S := continuous_tsum (fun ρ ↦ by dsimp [f]; fun_prop) hs.norm hb
+  have hbound (y : ℝ) : ‖S y‖ ≤ ∑' ρ, ‖b ρ‖ := tsum_of_norm_bounded hs.norm.hasSum (fun ρ ↦ hb ρ y)
+  have hI : IntegrableOn (fun y : ℝ ↦ (Real.exp ((c-σ)*y):ℂ)*S y) (Ioi 0) := by
+    apply ((integrableOn_exp_mul_Ioi (sub_neg.mpr hσ) 0).mul_const (∑' ρ, ‖b ρ‖)).mono'
+    · exact ((by fun_prop : Continuous (fun y : ℝ ↦ (Real.exp ((c-σ)*y):ℂ))).mul hS).aestronglyMeasurable
+    filter_upwards with y
+    rw [norm_mul,Complex.norm_real,Real.norm_eq_abs,abs_of_pos (Real.exp_pos _)]
+    exact mul_le_mul_of_nonneg_left (hbound _) (Real.exp_pos _).le
+  apply hI.congr
+  filter_upwards [ae_restrict_mem (μ := volume) measurableSet_Ioi] with y hy
+  dsimp only [S]
+  rw [← (moving_hasSum (a := a) (H := H) hs hy.le).tsum_eq,← tsum_mul_left,← tsum_mul_left]
+  apply tsum_congr
+  intro ρ
+  change _ * (b ρ * Complex.exp ((w(ρ)-c)*(max y 0 : ℝ))) = _ * (b ρ * Complex.exp (w(ρ)*y))
+  rw [max_eq_left hy.le,mul_left_comm _ (b ρ),mul_left_comm _ (b ρ),Complex.ofReal_exp,Complex.ofReal_exp,
+    ← Complex.exp_add,← Complex.exp_add]
+  push_cast; congr 2; ring
+
+/-- The Abel transform of the omitted trace recovers the missing coefficient
+at every site on or to the right of its abscissa of absolute convergence. -/
+theorem tendsto_omitted_laplace_residue (a : ℝ) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hc : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0) {c : ℝ}
+    (hg : ∀ σ, c < σ → IntegrableOn (fun y : ℝ ↦ ‖omittedMellinTrace a H y‖ *
+      Real.exp (-σ*y)) (Ioi 0)) (ρ : Z) (hρ : c ≤ w(ρ).re) :
+    Tendsto (fun d : ℝ ↦ (d:ℂ) * ∫ y in Ioi (0:ℝ), omittedMellinTrace a H y *
+      Complex.exp (-((w(ρ)+d)*y))) (𝓝[>] 0) (𝓝 coef(a,H,ρ)) := by
+  have hb := summable_coeff a H hH hc hp
+  exact tendsto_mul_laplace_of_hasSum_exp_of_integrable (fun z : Z ↦ w(z)) _
+    (fun _ _ he ↦ Subtype.ext (sub_left_inj.mp he)) shifted_discrete (fun z ↦ (shifted_re_lt z).le)
+    hb _ (fun _ hy ↦ moving_hasSum hb hy) _ (fun _ _ ↦ le_rfl) hg ρ hρ
+
 /-- After normalization by the polar exponential, the entire omitted trace
 decays to zero. No uniform zero-free strip near the pole is needed. -/
 theorem tendsto_pole_normalized_omitted (a : ℝ) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
@@ -158,32 +211,9 @@ theorem integrable_omitted_iff_right_samples {a : ℝ} (ha : 0 < a)
     exact (mul_eq_zero.mp ((mul_eq_zero.mp hzero).resolve_left normOneVolume_ne_zero)).resolve_left
       (by exact_mod_cast (Nat.ne_of_gt hm))
   · intro hann
-    have hbound (ρ : Z) (y : ℝ) (hy : 0 ≤ y) : ‖b ρ*Complex.exp (w(ρ)*y)‖ ≤ ‖b ρ‖ := by
-      by_cases hb : b ρ = 0
-      · simp [hb]
-      have hnon : w(ρ).re ≤ 0 := by
-        by_contra! hpos
-        have horder : 0 < omittedOrder a ρ := by
-          by_contra! he
-          exact hb (by simp [b,Nat.eq_zero_of_le_zero he])
-        exact hb (by dsimp only [b]; rw [hann ρ (by linarith [hr ρ]) horder,mul_zero,mul_zero])
-      rw [norm_mul,Complex.norm_exp,Complex.mul_re,Complex.ofReal_re,Complex.ofReal_im,mul_zero,sub_zero]
-      apply mul_le_of_le_one_right (norm_nonneg _)
-      exact Real.exp_le_one_iff.mpr (mul_nonpos_of_nonpos_of_nonneg hnon hy)
-    let S (y : ℝ) := ∑' ρ : Z, b ρ*Complex.exp (w(ρ)*(max y 0 : ℝ))
-    have hS : Continuous S := continuous_tsum (fun ρ ↦ by fun_prop) hs.norm
-      fun ρ y ↦ hbound ρ _ (le_max_right _ _)
-    have hEq {y : ℝ} (hy : 0 ≤ y) : S y = omittedMellinTrace a H y := by
-      simpa only [S,max_eq_left hy] using (series y hy).tsum_eq
-    have hB (y : ℝ) : ‖S y‖ ≤ ∑' ρ, ‖b ρ‖ :=
-      tsum_of_norm_bounded hs.norm.hasSum (fun ρ ↦ hbound ρ _ (le_max_right _ _))
-    have hi : IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ)*S y) (Ioi 0) := by
-      apply ((integrableOn_exp_mul_Ioi (a := -a/2) (by linarith) 0).mul_const (∑' ρ, ‖b ρ‖)).mono'
-      · exact (((by fun_prop : Continuous (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ)))).mul hS).aestronglyMeasurable
-      filter_upwards with y
-      rw [norm_mul,Complex.norm_real,Real.norm_eq_abs,abs_of_pos (Real.exp_pos _),
-        show -a*y/2 = -a/2*y by ring]
-      exact mul_le_mul_of_nonneg_left (hB y) (Real.exp_pos _).le
-    exact hi.congr ((ae_restrict_mem (μ := volume) measurableSet_Ioi).mono fun y hy ↦ congrArg (fun z : ℂ ↦ (Real.exp (-a*y/2):ℂ)*z) (hEq (le_of_lt hy)))
+    have h := integrable_omitted_above_active_sites a H hH hk hp (half_pos ha)
+      (fun ρ hρ ↦ hann ρ (by linarith [hr ρ]))
+    have hw (y : ℝ) : -(a/2)*y = -a*y/2 := by ring
+    simpa only [hw] using h
 
 end RiemannMasullo.RationalWidthLoss
