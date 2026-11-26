@@ -4,6 +4,7 @@ public import RiemannMasullo.Ch12_TraceGeometric.Sec3_MovingPrimeTrace
 import RiemannMasullo.ForMathlib.Analysis.Complex.ExpSumCesaro
 import RiemannMasullo.ForMathlib.Analysis.Fourier.SparseLaplaceProbe
 import Mathlib.Analysis.Normed.Group.FunctionSeries
+import Mathlib.Analysis.Normed.Group.Tannery
 import Mathlib.Tactic
 
 /-! # Which omitted zeta samples survive the critical detector
@@ -32,7 +33,7 @@ def omittedOrder (a : ℝ) (ρ : Z) : ℕ :=
 def omittedMellinTrace (a : ℝ) (H : ℝ → ℂ) (y : ℝ) : ℂ :=
   ∑' ρ : Z, V * ((omittedOrder a ρ : ℂ) * bilateralLaplace shift(H,y) w(ρ))
 
-private theorem normOneVolume_ne_zero : V ≠ 0 := by
+theorem normOneVolume_ne_zero : V ≠ 0 := by
   rw [normOneIdeleClassTamagawaMeasure_volume]
   apply Complex.ofReal_ne_zero.mpr
   apply (ENNReal.toReal_pos (ENNReal.ofReal_pos.mpr ?_).ne' ENNReal.ofReal_ne_top).ne'
@@ -57,7 +58,7 @@ private theorem shifted_discrete (z : ℂ) : ∀ᶠ u in 𝓝[≠] z, u ∉ rang
   rw [sub_add_cancel] at hu
   exact (ne_of_gt ρ.property) hu
 
-private theorem shifted_re_le (ρ : Z) : w(ρ).re ≤ 1/2 := by
+private theorem shifted_re_lt (ρ : Z) : w(ρ).re < 1/2 := by
   have hz : ρ.val ∈ zeroSites := by
     change 0 < MeromorphicOn.divisor _ _ _
     rw [principal_divisor_eq_completedRiemannZeta]
@@ -83,12 +84,49 @@ private theorem moving_hasSum {a : ℝ} {H : ℝ → ℂ} (hs : Summable (fun ρ
     apply Summable.of_norm_bounded (hs.norm.mul_right (Real.exp (1/2*y)))
     intro ρ
     rw [norm_mul,Complex.norm_exp,Complex.mul_re,Complex.ofReal_re,Complex.ofReal_im,mul_zero,sub_zero]
-    exact mul_le_mul_of_nonneg_left (Real.exp_le_exp.mpr (mul_le_mul_of_nonneg_right (shifted_re_le ρ) hy)) (norm_nonneg _)
+    exact mul_le_mul_of_nonneg_left (Real.exp_le_exp.mpr (mul_le_mul_of_nonneg_right (shifted_re_lt ρ).le hy)) (norm_nonneg _)
   convert h.hasSum using 1
   unfold omittedMellinTrace
   apply tsum_congr
   intro ρ
   rw [SparseLaplace.bilateralLaplace_translate]
+  ring
+
+/-- After normalization by the polar exponential, the entire omitted trace
+decays to zero. No uniform zero-free strip near the pole is needed. -/
+theorem tendsto_pole_normalized_omitted (a : ℝ) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hc : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0) :
+    Tendsto (fun y : ℝ ↦ (Real.exp (-y/2):ℂ)*omittedMellinTrace a H y) atTop (𝓝 0) := by
+  let b (ρ : Z) := coef(a,H,ρ)
+  let f (y : ℝ) (ρ : Z) := b ρ * Complex.exp ((w(ρ)-1/2)*y)
+  have hs : Summable b := summable_coeff a H hH hc hp
+  have hn (y : ℝ) (ρ : Z) : ‖Complex.exp ((w(ρ)-1/2)*y)‖ = Real.exp ((w(ρ).re-1/2)*y) := by
+    rw [Complex.norm_exp,Complex.mul_re,Complex.sub_re]; norm_num
+  have hterm (ρ : Z) : Tendsto (fun y ↦ f y ρ) atTop (𝓝 0) := by
+    have hneg := sub_neg.mpr (shifted_re_lt ρ)
+    have hzero : Tendsto (fun y : ℝ ↦ Complex.exp ((w(ρ)-1/2)*y)) atTop (𝓝 0) := by
+      rw [tendsto_zero_iff_norm_tendsto_zero]
+      simp only [hn]
+      exact Real.tendsto_exp_atBot.comp ((tendsto_const_mul_atBot_of_neg hneg).mpr
+        (show Tendsto (fun y : ℝ ↦ y) atTop atTop from tendsto_id))
+    simpa [f] using hzero.const_mul (b ρ)
+  have hb : ∀ᶠ y : ℝ in atTop, ∀ ρ, ‖f y ρ‖ ≤ ‖b ρ‖ := by
+    filter_upwards [eventually_ge_atTop (0:ℝ)] with y hy
+    intro ρ
+    rw [show ‖f y ρ‖ = ‖b ρ‖ * Real.exp ((w(ρ).re-1/2)*y) by dsimp only [f]; rw [norm_mul,hn]]
+    exact mul_le_of_le_one_right (norm_nonneg _) (Real.exp_le_one_iff.mpr
+      (mul_nonpos_of_nonpos_of_nonneg (sub_nonpos.mpr (shifted_re_lt ρ).le) hy))
+  have h := tendsto_tsum_of_dominated_convergence (g := fun _ : Z ↦ (0:ℂ)) hs.norm hterm hb
+  simp only [tsum_zero] at h
+  apply h.congr'
+  filter_upwards [eventually_ge_atTop (0:ℝ)] with y hy
+  rw [← (moving_hasSum (a := a) (H := H) hs hy).tsum_eq,Complex.ofReal_exp,← tsum_mul_left]
+  apply tsum_congr
+  intro ρ
+  change b ρ * Complex.exp ((w(ρ)-1/2)*y) = Complex.exp _ * (b ρ * Complex.exp (w(ρ)*y))
+  rw [mul_left_comm,← Complex.exp_add]
+  push_cast
+  congr 2
   ring
 
 /-- The detector sees precisely the missing right-hand orders on which the
@@ -116,7 +154,7 @@ theorem integrable_omitted_iff_right_samples {a : ℝ} (ha : 0 < a)
       rw [norm_mul,Complex.norm_real,Real.norm_eq_abs,abs_of_pos (Real.exp_pos _),
         show -a*y/2 = -(a/2)*y by ring,mul_comm]
     have hzero := eq_zero_of_hasSum_exp_of_endpoint_integrable (fun ρ : Z ↦ w(ρ)) b
-      (fun _ _ he ↦ Subtype.ext (sub_left_inj.mp he)) shifted_discrete shifted_re_le hs _ series hnorm ρ hc
+      (fun _ _ he ↦ Subtype.ext (sub_left_inj.mp he)) shifted_discrete (fun ρ ↦ (shifted_re_lt ρ).le) hs _ series hnorm ρ hc
     exact (mul_eq_zero.mp ((mul_eq_zero.mp hzero).resolve_left normOneVolume_ne_zero)).resolve_left
       (by exact_mod_cast (Nat.ne_of_gt hm))
   · intro hann

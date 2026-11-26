@@ -221,6 +221,102 @@ theorem exterior_firstPrime_iff_right_samples {a l u : ℝ} (ha : 0 < a) (hl : 0
     (integrable_omitted_iff_right_samples ha H hH
       (isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb) (fun _ hx ↦ hl.trans_le (hb hx).1))
 
+/-- Subtracting the actual translated polar contribution gives the same
+right-zero criterion at every positive width, with no restriction on either
+polar moment of the original test. -/
+theorem exterior_poleCorrected_firstPrime_iff_right_samples {a l u : ℝ} (ha : 0 < a)
+    (hl : 0 < l) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u)
+    (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) :
+    IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ) *
+      (exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y) -
+        V * bilateralLaplace shift(H,y) (1/2))) (Ioi 0) ↔
+      ∀ ρ : Z, 1/2 < ρ.val.re → 0 < omittedOrder a ρ → bilateralLaplace H w(ρ) = 0 := by
+  rw [← integrable_omitted_iff_right_samples ha H hH
+    (isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb) (fun _ hx ↦ hl.trans_le (hb hx).1)]
+  have h := integrable_exterior_first_add_omitted_sub_pole ha hl H hH hb φ hφ
+  constructor <;> intro hi <;> apply (h.sub hi).congr <;> filter_upwards with y <;> dsimp <;> ring
+
+private theorem limit_eq_zero_of_integrableOn_Ioi {F : ℝ → ℂ} {k : ℂ}
+    (hF : IntegrableOn F (Ioi 0)) (hk : Tendsto F atTop (𝓝 k)) : k = 0 := by
+  by_contra hn
+  have hpos := norm_pos_iff.mpr hn
+  obtain ⟨b,hb⟩ := eventually_atTop.mp (hk.norm.eventually (lt_mem_nhds (half_lt_self hpos)))
+  let t : ℝ := max b 0
+  have hsub : Ioi t ⊆ Ioi (0:ℝ) := Ioi_subset_Ioi (le_max_right _ _)
+  have hC : IntegrableOn (fun _ : ℝ ↦ ‖k‖/2) (Ioi t) := by
+    apply (hF.mono_set hsub).norm.mono' aestronglyMeasurable_const
+    filter_upwards [ae_restrict_mem (μ := volume) (measurableSet_Ioi (a := t))] with y hy
+    rw [Real.norm_eq_abs,abs_of_pos (half_pos hpos)]
+    exact (hb y ((le_max_left _ _).trans (le_of_lt hy))).le
+  simp [Real.volume_Ioi,(half_pos hpos).ne'] at hC
+
+/-- For the uncorrected first-prime comparison on widths at most one, a nonzero
+positive polar moment is itself an obstruction. The pole is strictly to the
+right of every individual zeta exponent, even without a uniform separation. -/
+theorem exterior_firstPrime_iff_pole_and_right_samples {a l u : ℝ} (ha : 0 < a)
+    (hl : 0 < l) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hb : tsupport H ⊆ Icc l u) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) :
+    IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ) *
+      (exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y))) (Ioi 0) ↔
+      (bilateralLaplace H (1/2) = 0 ∨ 1 < a) ∧ ∀ ρ : Z, 1/2 < ρ.val.re →
+        0 < omittedOrder a ρ → bilateralLaplace H w(ρ) = 0 := by
+  by_cases hwide : 1 < a
+  · have hpolar : IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ) *
+        (V * bilateralLaplace shift(H,y) (1/2))) (Ioi 0) := by
+      have hneg : ((((1-a)/2 : ℝ):ℂ)).re < 0 := by simpa using (show (1-a)/2 < 0 by linarith)
+      apply ((integrableOn_exp_mul_complex_Ioi hneg 0).const_mul (V * bilateralLaplace H (1/2))).congr
+      filter_upwards with y
+      rw [SparseLaplace.bilateralLaplace_translate,Complex.ofReal_exp]
+      have he : Complex.exp ((((1-a)/2:ℝ):ℂ)*y) =
+          Complex.exp (((-a*y/2:ℝ):ℂ)) * Complex.exp ((1/2)*(y:ℂ)) := by
+        rw [← Complex.exp_add]; push_cast; congr 1; ring
+      rw [he]; ring
+    have hiff := exterior_poleCorrected_firstPrime_iff_right_samples ha hl H hH hb φ hφ
+    constructor
+    · intro hm
+      refine ⟨Or.inr hwide,hiff.mp ?_⟩
+      apply (hm.sub hpolar).congr
+      filter_upwards with y; dsimp; ring
+    · rintro ⟨_,hr⟩
+      apply ((hiff.mpr hr).add hpolar).congr
+      filter_upwards with y; dsimp; ring
+  have ha₁ := le_of_not_gt hwide
+  constructor
+  · intro hm
+    let E (y : ℝ) := exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y)
+    let d (y : ℝ) : ℂ := Real.exp ((a-1)*y/2)
+    let k := V * bilateralLaplace H (1/2)
+    have hd : Continuous d := by unfold d; fun_prop
+    have hd₁ : ∀ᵐ y ∂volume.restrict (Ioi (0:ℝ)), ‖d y‖ ≤ 1 := by
+      filter_upwards [ae_restrict_mem (μ := volume) measurableSet_Ioi] with y hy
+      change ‖((Real.exp _ : ℝ):ℂ)‖ ≤ 1
+      rw [Complex.norm_real,Real.norm_eq_abs,abs_of_pos (Real.exp_pos _),Real.exp_le_one_iff]
+      exact div_nonpos_of_nonpos_of_nonneg (mul_nonpos_of_nonpos_of_nonneg (sub_nonpos.mpr ha₁) hy.le) (by norm_num)
+    have hr := integrable_exterior_first_add_omitted_sub_pole ha hl H hH hb φ hφ
+    have hF : IntegrableOn (fun y : ℝ ↦ k - (Real.exp (-y/2):ℂ)*omittedMellinTrace a H y) (Ioi 0) := by
+      apply ((hm.sub hr).bdd_mul hd.aestronglyMeasurable hd₁).congr
+      filter_upwards with y
+      have hd' : d y * (Real.exp (-a*y/2):ℂ) = (Real.exp (-y/2):ℂ) := by
+        dsimp only [d]; rw [← Complex.ofReal_mul,← Real.exp_add]; congr 2; ring
+      have hp' : (Real.exp (-y/2):ℂ)*Complex.exp ((1/2)*(y:ℂ)) = 1 := by
+        rw [Complex.ofReal_exp,← Complex.exp_add]; push_cast
+        rw [show -(y:ℂ)/2 + 1/2*y = 0 by ring,Complex.exp_zero]
+      change d y * (_ * E y - _ * (E y + _ - _)) = _
+      rw [SparseLaplace.bilateralLaplace_translate]
+      calc
+        _ = (d y * (Real.exp (-a*y/2):ℂ)) *
+            (V * (bilateralLaplace H (1/2)*Complex.exp ((1/2)*(y:ℂ))) - omittedMellinTrace a H y) := by ring
+        _ = k - (Real.exp (-y/2):ℂ)*omittedMellinTrace a H y := by
+          rw [hd']; dsimp only [k]; linear_combination V * bilateralLaplace H (1/2) * hp'
+    have ht := tendsto_pole_normalized_omitted a H hH
+      (isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb) (fun _ hx ↦ hl.trans_le (hb hx).1)
+    have hk : k = 0 := limit_eq_zero_of_integrableOn_Ioi hF (by simpa only [sub_zero] using ht.const_sub k)
+    have hp := (mul_eq_zero.mp hk).resolve_left normOneVolume_ne_zero
+    exact ⟨Or.inl hp,(exterior_firstPrime_iff_right_samples ha hl H hH hb hp φ hφ).mp hm⟩
+  · rintro ⟨hp',hs⟩
+    have hp := hp'.resolve_right hwide
+    exact (exterior_firstPrime_iff_right_samples ha hl H hH hb hp φ hφ).mpr hs
+
 /-- One compact normalized polar-free probe, with arbitrarily prescribed critical
 Mellin samples, matches the first-prime shell on the actual exterior for every
 strip width above the prescribed positive threshold. -/
