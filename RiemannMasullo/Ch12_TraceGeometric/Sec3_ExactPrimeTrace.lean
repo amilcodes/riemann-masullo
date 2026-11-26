@@ -2,6 +2,7 @@ module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_RadialPrimeTrace
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_ShrinkingPrimePower
+import RiemannMasullo.Ch12_TraceGeometric.Sec3_RationalDensityComparison
 import RiemannMasullo.ForMathlib.Analysis.Fourier.SparseLaplaceProbe
 
 /-! # Exact signed trace comparison on localized rational prime-power tests
@@ -22,6 +23,22 @@ set_option quotPrecheck false
 
 local notation "Ext(" δ ")" => {ρ : zeroSites // (δ : ℝ) ≤ |ρ.val.re - 1 / 2|}
 
+private theorem summable_inverse_height_of_right_density {δ σ q C : ℝ}
+    (hδ' : σ ≤ 1/2+δ) (hq' : q < 1) (hC : 0 ≤ C) (hd : HasRightDensity σ q C) :
+    Summable (fun ρ : Ext(δ) ↦ 1 / (1 + |ρ.val.val.im|)) := by
+  let m (ρ : zeroSites) : ℝ := if δ ≤ |ρ.val.re - 1 / 2| then 1 else 0
+  have hm (ρ) : 0 ≤ m ρ := by dsimp [m]; split <;> norm_num
+  have hcount := weighted_count_of_right_density hd m (fun ρ ↦ by
+    have hp : 1 ≤ multiplicity ρ := Int.pos_iff_toNat_pos.mp ρ.property
+    dsimp [m]; split
+    · exact_mod_cast hp
+    · positivity) (fun ρ hl hr ↦ by
+      have hi : |ρ.val.re - 1 / 2| < δ := abs_lt.mpr ⟨by linarith, by linarith⟩
+      exact ite_eq_right hi.not_ge)
+  have hs := summable_height_moment_of_log_count (fun ρ : zeroSites ↦ ρ.val.im) m hm
+    (r := 1) zero_le_one hq' (mul_nonneg (by norm_num) hC) 5 hcount
+  exact (hs.subtype _).congr fun ρ ↦ by simp only [m, ite_eq_left ρ.property, Real.rpow_one, Function.comp_apply]
+
 /-- Ingham's positive-height density estimate implies summability of inverse first
 heights on both closed exterior bands, even for an arbitrarily small positive width. -/
 theorem summable_exterior_inverse_height (hI : InghamDensity) {δ : ℝ} (hδ : 0 < δ) :
@@ -36,18 +53,18 @@ theorem summable_exterior_inverse_height (hI : InghamDensity) {δ : ℝ} (hδ : 
   have hq' : q < 1 := (div_lt_iff₀ hden).mpr (by linarith)
   obtain ⟨C₀, hC₀, hd₀⟩ := hI σ hσ hσ'
   obtain ⟨C, hC, hd⟩ := hasRightDensity_of_positiveHeight hq hC₀ hd₀
-  let m (ρ : zeroSites) : ℝ := if δ ≤ |ρ.val.re - 1 / 2| then 1 else 0
-  have hm (ρ) : 0 ≤ m ρ := by dsimp [m]; split <;> norm_num
-  have hcount := weighted_count_of_right_density hd m (fun ρ ↦ by
-    have hp : 1 ≤ multiplicity ρ := Int.pos_iff_toNat_pos.mp ρ.property
-    dsimp [m]; split
-    · exact_mod_cast hp
-    · positivity) (fun ρ hl hr ↦ by
-      have hi : |ρ.val.re - 1 / 2| < δ := abs_lt.mpr ⟨by linarith, by linarith⟩
-      exact ite_eq_right hi.not_ge)
-  have hs := summable_height_moment_of_log_count (fun ρ : zeroSites ↦ ρ.val.im) m hm
-    (r := 1) zero_le_one hq' (mul_nonneg (by norm_num) hC) 5 hcount
-  exact (hs.subtype _).congr fun ρ ↦ by simp only [m, ite_eq_left ρ.property, Real.rpow_one, Function.comp_apply]
+  exact summable_inverse_height_of_right_density hδ' hq' hC hd
+
+/-- The two closed exterior bands have summable inverse first heights at every
+positive lower width. This follows from the power saving for the ordinary zeta
+function and the functional equation. -/
+theorem summable_exterior_inverse_height_unconditional {δ : ℝ} (hδ : 0 < δ) :
+    Summable (fun ρ : Ext(δ) ↦ 1 / (1 + |ρ.val.val.im|)) := by
+  let d := min δ (1/2)
+  have hd : 0 < d := lt_min hδ (by norm_num)
+  obtain ⟨C,hC,h⟩ := exists_rightDensity_power hd (min_le_right _ _)
+  exact summable_inverse_height_of_right_density (by dsimp [d]; linarith [min_le_left δ (1/2:ℝ)])
+    (by nlinarith [sq_pos_of_pos hd]) hC h
 
 private theorem exists_arch_probe {δ : ℝ}
     (hs : Summable (fun ρ : Ext(δ) ↦ 1 / (1 + |ρ.val.val.im|)))
@@ -220,13 +237,12 @@ private theorem single_weighted_sample {n : ℕ} (hn : 0 < n) {c r : ℝ}
   exact hm (by exact_mod_cast he')
 
 set_option maxHeartbeats 900000 in
-/-- Paper: §12.3, p. 514, and pp. 519–520. Assuming Ingham's stated ordinary-zeta
-density estimate, each rational prime power admits arbitrarily localized tests with
+/-- Paper: §12.3, p. 514, and pp. 519–520. Each rational prime power admits arbitrarily localized tests with
 any two prescribed polar moments and any prescribed real-place remainder. A single
 finite local level and a single test give the exact signed prime value simultaneously
 at all strip widths above the chosen positive threshold and all Sobolev orders above
 one. The cutoff on the local side tends to this same value. -/
-theorem exists_exact_prime_power_sharp_strip_trace (hI : InghamDensity) {p j : ℕ}
+theorem exists_exact_prime_power_sharp_strip_trace_unconditional {p j : ℕ}
     (hp : p.Prime) (hj : j ≠ 0) :
     let n := p ^ j
     let c := Real.log (n : ℝ)
@@ -250,7 +266,7 @@ theorem exists_exact_prime_power_sharp_strip_trace (hI : InghamDensity) {p j : �
   intro ε δ hε hεr hδ P M A
   have hεc : ε < c := (hεr.trans (min_le_right _ _)).trans_lt (half_lt_self hc)
   obtain ⟨H, hH, hb, hHc, hP, hM, hA, hz⟩ := exists_exterior_annihilating_prime_probe
-    (summable_exterior_inverse_height hI hδ) hε hεc P M A
+    (summable_exterior_inverse_height_unconditional hδ) hε hεc P M A
   have hk : HasCompactSupport H := isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb
   have hpos : tsupport H ⊆ Ioi 0 := fun x hx ↦ lt_of_lt_of_le (sub_pos.mpr hεc) (hb hx).1
   have hbr : tsupport H ⊆ Icc (c - r) (c + r) := hb.trans (Icc_subset_Icc (by linarith) (by linarith))
@@ -266,5 +282,27 @@ theorem exists_exact_prime_power_sharp_strip_trace (hI : InghamDensity) {p j : �
   · simpa only [hval] using hlim
   · intro a s ha hs hδa T hT
     rw [trace_eq_of_annihilating hδa ha hs H hH hk hpos hz φ hφ T hT, hval]
+
+set_option maxHeartbeats 900000 in
+/-- Paper: §12.3, p. 514, and pp. 519–520. Assuming Ingham's stated ordinary-zeta
+density estimate, each rational prime power admits arbitrarily localized tests with
+any two prescribed polar moments and any prescribed real-place remainder. A single
+finite local level and a single test give the exact signed prime value simultaneously
+at all strip widths above the chosen positive threshold and all Sobolev orders above
+one. The cutoff on the local side tends to this same value. -/
+theorem exists_exact_prime_power_sharp_strip_trace (hI : InghamDensity) {p j : ℕ}
+    (hp : p.Prime) (hj : j ≠ 0) :
+    let n := p ^ j
+    let c := Real.log (n : ℝ)
+    ∃ r > (0 : ℝ), ∃ S : Finset Pl, ∀ {ε δ : ℝ}, 0 < ε → ε ≤ r → 0 < δ →
+      ∀ P M A : ℂ, ∃ (H : ℝ → ℂ) (φ : BruhatCompactSupport Cℚ)
+        (f : BruhatCompactSupport (SAdeleRing ℚ S)ˣ),
+        ContDiff ℝ (∞) H ∧ tsupport H ⊆ Icc (c - ε) (c + ε) ∧ H c = 1 ∧ radial(φ, H) ∧
+        lifts(S, f, φ) ∧ pole(φ, (1 / 2)) = V * P ∧ pole(φ, (-(1 / 2))) = V * M ∧
+        let value := V * (P - ((Real.log p / Real.sqrt (n : ℝ) : ℝ) : ℂ) - A)
+        Tendsto (fun R : ℝ ↦ -rationalCorrectedSharpMass f R) atTop (𝓝 value) ∧
+        ∀ {a s : ℝ} (ha : 0 ≤ a) (hs : 1 < s), δ ≤ a →
+          ∀ T : nuclearEndomorphisms Q(ha, hs), rep(T, φ, ha, hs) → hilbertTrace T = value :=
+  exists_exact_prime_power_sharp_strip_trace_unconditional hp hj
 
 end RiemannMasullo.RationalWidthLoss

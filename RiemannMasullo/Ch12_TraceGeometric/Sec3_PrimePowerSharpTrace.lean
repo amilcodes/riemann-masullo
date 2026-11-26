@@ -2,6 +2,7 @@ module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_LogarithmicSharpTrace
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_ShrinkingPrimePower
+import RiemannMasullo.Ch12_TraceGeometric.Sec3_RationalDensityComparison
 
 /-! # The signed local and quotient traces near an individual rational prime power
 
@@ -274,6 +275,19 @@ theorem exists_shrinkingSharpMass_stripTrace {σ q C ν : ℝ} (hq : 0 ≤ q) (h
   change _ = V * centeredVonMangoldtValue H - hilbertTrace T at he
   rw [← he]
   exact hd' η hη h1 t ht a s hw
+
+/-- Paper: §12.3, p. 514. A prescribed smooth shrinking profile measures its
+signed prime-power atom unconditionally at every fixed positive lower strip width.
+At half-width `δ`, every exponent below `δ²/16` is available for the discrepancy. -/
+theorem fixedWidth_shrinkingSharpMass_stripTrace {δ ν : ℝ} (hδ : 0 < δ) (hδ' : δ ≤ 1/2)
+    (hν : 0 < ν) (hν' : ν < δ^2/16)
+    {g : ℝ → ℝ} (hg : ContDiff ℝ (∞) g) (hgS : tsupport g ⊆ Icc (-1) 1)
+    {c U : ℝ} (hc : 0 < c) (hU : 0 ≤ U) :
+    HasShrinkingSharpTraceEstimate g c U (fun _ a ↦ δ ≤ a) (fun η ↦ η^ν) := by
+  obtain ⟨C,hC,h⟩ := exists_rightDensity_power hδ hδ'
+  have hq : 0 ≤ 1-δ^2/16 := by nlinarith [mul_nonneg hδ.le (sub_nonneg.mpr hδ')]
+  have hs := exists_shrinkingSharpMass_stripTrace hq hν (by linarith) hC h hg hgS hc hU
+  simpa only [add_sub_cancel_left] using hs
 
 /-- Under the stated Ingham zero-density input, the local comparison at half-width
 one quarter has every remainder exponent below two fifths. -/
