@@ -6,6 +6,7 @@ public import RiemannMasullo.Ch12_TraceGeometric.Sec3_MovingPrimeTrace
 public import RiemannMasullo.Ch12_TraceGeometric.Sec5_SignedTranslateBound
 public import RiemannMasullo.Ch10_TraceSpectral.Sec4b_ProjectedKernels
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_WeightedPrimeRemainder
+import RiemannMasullo.ForMathlib.Analysis.Fourier.SparseLaplaceProbe
 import Mathlib.Tactic
 
 /-! # The signed rational exterior trace and the first prime shell
@@ -167,15 +168,15 @@ private theorem moving_sum {a l u : ℝ} (ha : 0 ≤ a) (hl : 0 < l)
   rw [ideleClassBruhatTranslate_apply,hφ,log_inv_mul,section_log]
   rfl
 
-/-- For *every* fixed radial test supported in a positive log window with vanishing
-positive polar moment, the signed exterior/first-prime error plus the explicit
-omitted Mellin trace belongs to the critical weighted L¹ space. -/
-theorem integrable_exterior_first_add_omitted {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
+/-- The physical comparison with its exact translated polar term for unrestricted
+positive-log radial tests, including tests with nonzero polar moments. -/
+theorem integrable_exterior_first_add_omitted_sub_pole {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
     (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u)
-    (hp : bilateralLaplace H (1/2) = 0) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) :
+    (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) :
     IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2) : ℂ) *
-      (exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y) + omittedMellinTrace a H y)) (Ioi 0) := by
-  have h₁ := (integrable_weighted_centered_add_first ha hl H hH.continuous hb hp).const_mul V
+      (exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y) + omittedMellinTrace a H y -
+        V * bilateralLaplace shift(H,y) (1/2))) (Ioi 0) := by
+  have h₁ := (integrable_weighted_centered_add_first_sub_pole ha hl H hH.continuous hb).const_mul V
   have h₂ := spatial_error ha φ
   apply (h₁.add h₂).congr
   filter_upwards [ae_restrict_mem (μ := volume) measurableSet_Ioi] with y hy
@@ -184,6 +185,17 @@ theorem integrable_exterior_first_add_omitted {a l u : ℝ} (ha : 0 < a) (hl : 0
   dsimp only [Pi.add_apply]
   rw [hS]
   ring
+
+/-- For *every* fixed radial test supported in a positive log window with vanishing
+positive polar moment, the signed exterior/first-prime error plus the explicit
+omitted Mellin trace belongs to the critical weighted L¹ space. -/
+theorem integrable_exterior_first_add_omitted {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
+    (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u)
+    (hp : bilateralLaplace H (1/2) = 0) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) :
+    IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2) : ℂ) *
+      (exteriorStripTrace ha.le φ y + V*rationalFirstPrimeSum shift(H,y) + omittedMellinTrace a H y)) (Ioi 0) := by
+  simpa only [SparseLaplace.bilateralLaplace_translate,hp,zero_mul,mul_zero,sub_zero] using
+    integrable_exterior_first_add_omitted_sub_pole ha hl H hH hb φ hφ
 
 /-- The original weighted comparison holds exactly when the explicitly omitted
 zeta samples are integrable with that weight. -/
@@ -238,5 +250,35 @@ theorem exists_exterior_firstPrime_matching {ι : Type*} [Fintype ι] (γ : ι �
     exact (Nat.lt_irrefl 0) horder
   exact hz ⟨⟨ρ.val,hsite⟩,hδρ⟩
 
+local notation "φᵧ(" φ ", " y ")" => ideleClassBruhatTranslate (rationalLogSection y) φ
+local notation "Sᵧ(" u ", " y ")" => rationalPrimeLevel ((u:ℝ)+y)
+local notation "lifts(" S ", " f ", " φ ")" => ∀ g : (SAdeleRing ℚ S)ˣ,
+  HasSum (fun ξ : sProjectedDiagonal ℚ S ↦ (f : BruhatCompactSupport (SAdeleRing ℚ S)ˣ).val (ξ.val * g))
+    ((φ : BruhatCompactSupport Cℚ).val (QuotientGroup.mk (sIdeleInsertion ℚ S g)))
+
+attribute [local instance] instFiniteCompletionUnitsLocallyCompactSec4b instSIdeleQuotientMeasurableSpaceSec1
+  instNormOneSIdeleQuotientMeasurableSpaceSec1 instSIdeleLocallyCompactSec1 instSIdeleT2Sec4
+
+/-- Every lift of the translated test gives the same signed comparison. At each
+sufficiently positive translate this is an ordinary sharp-cutoff limit on the
+actual S-ideles, valid for arbitrary tests, including nonzero polar moments.
+The discrepancy consists of the first-prime shell and the missing Mellin orders. -/
+theorem tendsto_physicalTrace_add_primeLevel_mass {a l u y : ℝ} (ha : 0 ≤ a) (hl : 0 < l)
+    (hy : 0 ≤ y) (hsep : (u+y)/2 < l+y) (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H)
+    (hb : tsupport H ⊆ Icc l u) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H))
+    (f : BruhatCompactSupport (SAdeleRing ℚ Sᵧ(u,y))ˣ) (hf : lifts(Sᵧ(u,y),f,φᵧ(φ,y))) :
+    Tendsto (fun R : ℝ ↦ hilbertTrace (physicalProjectedTraceOperator ha φᵧ(φ,y)) +
+      rationalCorrectedSharpMass f R) atTop
+      (𝓝 (-V * rationalFirstPrimeSum shift(H,y) - omittedMellinTrace a H y)) := by
+  have ht (x : Cℚ) : (φᵧ(φ,y)).val x = H (ℓ x-y) := by
+    rw [ideleClassBruhatTranslate_apply,hφ,log_inv_mul,section_log]
+  have hm := primeLevel_signed_comparison_of_lift (add_pos_of_pos_of_nonneg hl hy) hsep
+    shift(H,y) (hH.comp (contDiff_id.sub contDiff_const)) (translate_support hb) φᵧ(φ,y) ht f hf
+  have hres := (moving_sum ha hl H hH hb φ hφ hy).tsum_eq
+  change omittedMellinTrace a H y = _ at hres
+  apply (hm.sub_const (omittedMellinTrace a H y)).congr
+  intro R
+  rw [hres,projected_trace]
+  ring
 
 end RiemannMasullo.RationalWidthLoss

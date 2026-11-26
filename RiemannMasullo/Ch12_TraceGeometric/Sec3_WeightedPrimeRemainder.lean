@@ -199,13 +199,13 @@ private theorem integrable_weighted_arch {a l : ℝ} (ha : 0 < a) (hl : 0 < l)
     show -a*y/2 = -a/2*y by ring]
   exact mul_le_mul_of_nonneg_left (hh y hy) (Real.exp_pos _).le
 
-/-- For each positive width, the translated centered explicit formula plus its
-first-prime sum has integrable critical weight once the positive pole is killed. -/
-theorem integrable_weighted_centered_add_first {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
-    (H : ℝ → ℂ) (hH : Continuous H) (hb : tsupport H ⊆ Icc l u)
-    (hp : bilateralLaplace H (1/2) = 0) :
+/-- After subtracting the translated polar term the higher prime powers and real-place
+remainder have finite total critical mass for every compact positive-log test. -/
+theorem integrable_weighted_centered_add_first_sub_pole {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
+    (H : ℝ → ℂ) (hH : Continuous H) (hb : tsupport H ⊆ Icc l u) :
     IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ) *
-      (centeredVonMangoldtValue (fun x ↦ H (x-y)) + rationalFirstPrimeSum (fun x ↦ H (x-y)))) (Ioi 0) := by
+      (centeredVonMangoldtValue (fun x ↦ H (x-y)) + rationalFirstPrimeSum (fun x ↦ H (x-y)) -
+        bilateralLaplace (fun x ↦ H (x-y)) (1/2))) (Ioi 0) := by
   have hk := isCompact_Icc.of_isClosed_subset (isClosed_tsupport H) hb
   have hz {x} (hx : x < l) : H x = 0 := by
     by_contra hh
@@ -218,9 +218,19 @@ theorem integrable_weighted_centered_add_first {a l u : ℝ} (ha : 0 < a) (hl : 
     by_contra hn
     linarith [(hb (subset_tsupport H hn)).2]
   dsimp only [Pi.neg_apply,Pi.add_apply]
-  rw [centeredVonMangoldtValue,SparseLaplace.bilateralLaplace_translate,hp,zero_mul,
+  rw [centeredVonMangoldtValue,
     prime_split (u := u+y) (fun x ↦ H (x-y)) hi]
   ring
+
+/-- For each positive width, the translated centered explicit formula plus its
+first-prime sum has integrable critical weight once the positive pole is killed. -/
+theorem integrable_weighted_centered_add_first {a l u : ℝ} (ha : 0 < a) (hl : 0 < l)
+    (H : ℝ → ℂ) (hH : Continuous H) (hb : tsupport H ⊆ Icc l u)
+    (hp : bilateralLaplace H (1/2) = 0) :
+    IntegrableOn (fun y : ℝ ↦ (Real.exp (-a*y/2):ℂ) *
+      (centeredVonMangoldtValue (fun x ↦ H (x-y)) + rationalFirstPrimeSum (fun x ↦ H (x-y)))) (Ioi 0) := by
+  simpa only [SparseLaplace.bilateralLaplace_translate,hp,zero_mul,sub_zero] using
+    integrable_weighted_centered_add_first_sub_pole ha hl H hH hb
 
 
 end RiemannMasullo

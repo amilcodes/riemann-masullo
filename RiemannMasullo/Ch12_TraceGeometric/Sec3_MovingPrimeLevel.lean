@@ -139,22 +139,18 @@ local notation "rootS(" g ")" => (Real.sqrt (((sIdeleNorm ℚ Sᵤ g).val : ℝ)
 local notation "P(" f ")" => ((∫ g : Iₛ, (f : BruhatCompactSupport Iₛ).val g * rootS(g) ∂μₛ) +
   ∫ g : Iₛ, (f : BruhatCompactSupport Iₛ).val g / rootS(g) ∂μₛ)
 
-/-- For every positive-log radial window with `u/2 < l`, the sum of the full
-explicit formula value and the corrected orbital mass at the square-root
-cutoff tends to minus the first-prime sum. The periodization holds on the
-actual finite-place ideles. Both Mellin poles are included in the mass. -/
-theorem exists_primeLevel_signed_comparison (hl : 0 < l) (hlu : u/2 < l)
-    (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u) :
-    ∃ (φ : BruhatCompactSupport Cℚ) (f : BruhatCompactSupport Iₛ), radial(φ,H) ∧ lifts(Sᵤ,f,φ) ∧
-      Tendsto (fun R : ℝ ↦ V * centeredVonMangoldtValue H + rationalCorrectedSharpMass f R)
-        atTop (𝓝 (-V * rationalFirstPrimeSum H)) := by
+/-- The corrected mass has the same signed limit for every periodizing lift
+of a fixed radial probe at the square-root prime cutoff. -/
+theorem primeLevel_signed_comparison_of_lift (hl : 0 < l) (hlu : u/2 < l)
+    (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u)
+    (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ,H)) (f : BruhatCompactSupport Iₛ)
+    (hf : lifts(Sᵤ,f,φ)) :
+    Tendsto (fun R : ℝ ↦ V * centeredVonMangoldtValue H + rationalCorrectedSharpMass f R)
+      atTop (𝓝 (-V * rationalFirstPrimeSum H)) := by
   have hk : HasCompactSupport H := isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb
   have hp : tsupport H ⊆ Ioi 0 := fun _ h ↦ hl.trans_le (hb h).1
-  obtain ⟨φ,hφ⟩ := exists_normTest (F := ℚ) H hH hk
   have hPic := subsingleton_rational_sInteger_pic Sᵤ
   have hOutside := rationalNormTest_outside_invariant (S := Sᵤ) H φ hφ
-  obtain ⟨f,hf⟩ := exists_sLocalTraceLift hPic φ hOutside
-  refine ⟨φ,f,hφ,hf,?_⟩
   have h0 : H 0 = 0 := by
     by_contra hn
     exact (lt_irrefl (0 : ℝ)) (hp (subset_tsupport H hn))
@@ -192,6 +188,22 @@ theorem exists_primeLevel_signed_comparison (hl : 0 < l) (hlu : u/2 < l)
     linear_combination hPol + volS * hz
   rw [he]
   exact h
+
+/-- For every positive-log radial window with `u/2 < l`, the sum of the full
+explicit formula value and the corrected orbital mass at the square-root
+cutoff tends to minus the first-prime sum. The periodization holds on the
+actual finite-place ideles. Both Mellin poles are included in the mass. -/
+theorem exists_primeLevel_signed_comparison (hl : 0 < l) (hlu : u/2 < l)
+    (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hb : tsupport H ⊆ Icc l u) :
+    ∃ (φ : BruhatCompactSupport Cℚ) (f : BruhatCompactSupport Iₛ), radial(φ,H) ∧ lifts(Sᵤ,f,φ) ∧
+      Tendsto (fun R : ℝ ↦ V * centeredVonMangoldtValue H + rationalCorrectedSharpMass f R)
+        atTop (𝓝 (-V * rationalFirstPrimeSum H)) := by
+  have hk : HasCompactSupport H := isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb
+  obtain ⟨φ,hφ⟩ := exists_normTest (F := ℚ) H hH hk
+  have hPic := subsingleton_rational_sInteger_pic Sᵤ
+  have hOutside := rationalNormTest_outside_invariant (S := Sᵤ) H φ hφ
+  obtain ⟨f,hf⟩ := exists_sLocalTraceLift hPic φ hOutside
+  exact ⟨φ,f,hφ,hf,primeLevel_signed_comparison_of_lift hl hlu H hH hb φ hφ f hf⟩
 
 end
 end RiemannMasullo
