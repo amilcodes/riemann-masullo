@@ -266,6 +266,68 @@ private theorem zeta_zero_at_site (z : zeroSites) : riemannZeta z.val = 0 := by
   simp at h
   omega
 
+/-- A nontrivial ordinary zeta zero has positive order in the completed divisor.
+The nonvanishing of the gamma factor excludes precisely the negative even integers. -/
+private theorem positive_completed_divisor_of_zeta_zero {z : ℂ} (hz : riemannZeta z = 0)
+    (ht : ¬∃ n : ℕ, z = -2*(n+1)) (ho : z ≠ 1) :
+    0 < MeromorphicOn.divisor completedRiemannZeta univ z := by
+  have hn : z ≠ 0 := by rintro rfl; rw [riemannZeta_zero] at hz; norm_num at hz
+  have hΓ : Complex.Gammaℝ z ≠ 0 := by
+    intro he
+    obtain ⟨n,he⟩ := Complex.Gammaℝ_eq_zero_iff.mp he
+    cases n with
+    | zero => exact hn (by simpa using he)
+    | succ n => exact ht ⟨n,by simpa [Nat.cast_add,Nat.cast_one,neg_mul] using he⟩
+  have hz' : completedRiemannZeta z = 0 := by
+    rw [riemannZeta_def_of_ne_zero hn] at hz
+    exact (div_eq_zero_iff.mp hz).resolve_right hΓ
+  have han {s : ℂ} (hs : s ≠ 0) (hs' : s ≠ 1) : AnalyticAt ℂ completedRiemannZeta s := by
+    apply Complex.analyticAt_iff_eventually_differentiableAt.mpr
+    filter_upwards [isOpen_ne.mem_nhds hs,isOpen_ne.mem_nhds hs'] with w hw hw' using differentiableAt_completedZeta hw hw'
+  have ha := han hn ho
+  have hn₂ : completedRiemannZeta 2 ≠ 0 := by
+    intro h2
+    apply riemannZeta_ne_zero_of_one_lt_re (s := 2) (by norm_num)
+    rw [riemannZeta_def_of_ne_zero (by norm_num),h2,zero_div]
+  have ha₂ := han (by norm_num : (2:ℂ) ≠ 0) (by norm_num : (2:ℂ) ≠ 1)
+  have hfin := completedZeta_meromorphic.meromorphicOrderAt_ne_top_of_isPreconnected
+    isPreconnected_univ (mem_univ (2:ℂ)) (mem_univ z)
+    (by rw [ha₂.meromorphicOrderAt_eq,ha₂.analyticOrderAt_eq_zero.mpr hn₂]; simp)
+  rw [MeromorphicOn.divisor_apply completedZeta_meromorphic (mem_univ _),ha.meromorphicOrderAt_eq]
+  have hp := ha.analyticOrderAt_ne_zero.mpr hz'
+  rw [ha.meromorphicOrderAt_eq] at hfin
+  cases he : analyticOrderAt completedRiemannZeta z with
+  | top => simp [he] at hfin
+  | coe n =>
+    have hn' : n ≠ 0 := by rintro rfl; exact hp (by simpa using he)
+    simpa using (Nat.pos_of_ne_zero hn')
+
+/-- Mathlib's Riemann hypothesis is equivalent to the absence of positive
+completed divisor orders strictly to the right of the center. -/
+theorem riemannHypothesis_iff_right_divisor :
+    RiemannHypothesis ↔ ∀ z : ℂ, 0 < MeromorphicOn.divisor completedRiemannZeta univ z → z.re ≤ 1/2 := by
+  constructor
+  · intro h z hz
+    have hsite : z ∈ zeroSites := by
+      change 0 < m₀ z
+      rwa [principal_divisor_eq_completedRiemannZeta]
+    let ρ : zeroSites := ⟨z,hsite⟩
+    have hstrip := re_mem_Ioo ρ
+    change 0 < z.re ∧ z.re < 1 at hstrip
+    apply le_of_eq (h z (zeta_zero_at_site ρ) ?_ ?_)
+    · rintro ⟨n,rfl⟩
+      norm_num at hstrip
+      linarith [hstrip.1, Nat.cast_nonneg (α := ℝ) n]
+    · rintro rfl; norm_num at hstrip
+  · intro h z hz ht ho
+    have hp := positive_completed_divisor_of_zeta_zero hz ht ho
+    have hr := h z hp
+    have hleft : 0 < MeromorphicOn.divisor completedRiemannZeta univ (1-z) := by
+      simpa only [MeromorphicOn.divisor_apply completedZeta_meromorphic (mem_univ _),completedZeta_reflected_order] using hp
+    have hl := h (1-z) hleft
+    rw [Complex.sub_re,Complex.one_re] at hl
+    linarith
+
 private theorem count_positive {σ q C : ℝ} (hd : HasPositiveHeightZetaDensity σ q C)
     {T : ℝ} (hT : 2 ≤ T) (S : Finset zeroSites)
     (hS : ∀ z ∈ S, σ ≤ z.val.re ∧ z.val.im ∈ Ioc 0 T) :
