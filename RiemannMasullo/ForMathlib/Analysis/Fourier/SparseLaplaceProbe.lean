@@ -238,16 +238,26 @@ private theorem finite_filters {ι : Type*} (w : ι → ℂ) {b : ℝ} (s : Fins
           simp only [mul_assoc, integral_const_mul]
       _ = _ := by rw [laplace_deriv hg hgc, hgz, Finset.prod_insert hi]; ring
 
+private theorem summable_inverse_height_sub {ι : Type*} {w : ι → ℂ}
+    (hs : Summable (fun i ↦ 1/(1+|(w i).im|))) (r : ℂ) :
+    Summable (fun i ↦ 1/(1+|(w i-r).im|)) := by
+  apply (hs.mul_left (1+|r.im|)).of_nonneg_of_le (fun i ↦ by positivity)
+  intro i
+  rw [Complex.sub_im,← mul_div_assoc, mul_one,div_le_div_iff₀ (by positivity) (by positivity)]
+  have ht := abs_add_le ((w i).im-r.im) r.im
+  rw [sub_add_cancel] at ht
+  nlinarith only [ht,mul_nonneg (abs_nonneg r.im) (abs_nonneg ((w i).im-r.im))]
+
 /-- In an arbitrarily short interval there is a smooth test whose transform vanishes
-at every prescribed sparse frequency and is nonzero at a specified real point.
+at every prescribed sparse frequency and is nonzero at a specified complex point.
 Finitely many exceptional frequencies need no height separation. -/
-theorem exists_compact_probe {ι : Type*} (w : ι → ℂ) (r : ℝ) (hne : ∀ i, w i ≠ r)
+theorem exists_compact_probe_complex {ι : Type*} (w : ι → ℂ) (r : ℂ) (hne : ∀ i, w i ≠ r)
     (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) {ε : ℝ} (hε : 0 < ε) :
     ∃ G : ℝ → ℂ, ContDiff ℝ (∞) G ∧ tsupport G ⊆ Icc 0 ε ∧
       bilateralLaplace G r ≠ 0 ∧ ∀ i, bilateralLaplace G (w i) = 0 := by
   classical
-  let v (i : ι) := w i - (r : ℂ)
-  obtain ⟨s, L, μ, _, hL, hμ⟩ := exists_tail_measure v (by simpa [v] using hs)
+  let v (i : ι) := w i - r
+  obtain ⟨s, L, μ, _, hL, hμ⟩ := exists_tail_measure v (summable_inverse_height_sub hs r)
     (half_pos hε)
   let B : ContDiffBump (ε / 4) := ⟨ε / 8, ε / 4, by positivity, by linarith⟩
   let h (x : ℝ) : ℂ := B.normed volume x
@@ -265,11 +275,11 @@ theorem exists_compact_probe {ι : Type*} (w : ι → ℂ) (r : ℝ) (hne : ∀ 
     rw [hgz]
     simp [bilateralLaplace, h, integral_complex_ofReal, B.integral_normed]
   obtain ⟨f, hf, hfb, hfz⟩ := finite_filters v s hg hgb
-  let G (x : ℝ) := f x * cexp (-(r : ℂ) * x)
+  let G (x : ℝ) := f x * cexp (-r * x)
   have hG (z : ℂ) : bilateralLaplace G z = bilateralLaplace f (z - r) := by
     unfold bilateralLaplace
     refine integral_congr_ae (ae_of_all _ fun x ↦ ?_)
-    change f x * cexp (-(r : ℂ) * x) * cexp (z * x) = _
+    change f x * cexp (-r * x) * cexp (z * x) = _
     rw [mul_assoc, ← Complex.exp_add]
     congr 2
     ring
@@ -281,6 +291,15 @@ theorem exists_compact_probe {ι : Type*} (w : ι → ℂ) (r : ℝ) (hne : ∀ 
     by_cases hi : i ∈ s
     · rw [Finset.prod_eq_zero hi (sub_self (v i)), zero_mul]
     · rw [hgz, hμ i hi, mul_zero, mul_zero]
+
+/-- In an arbitrarily short interval there is a smooth test whose transform vanishes
+at every prescribed sparse frequency and is nonzero at a specified real point.
+Finitely many exceptional frequencies need no height separation. -/
+theorem exists_compact_probe {ι : Type*} (w : ι → ℂ) (r : ℝ) (hne : ∀ i, w i ≠ r)
+    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) {ε : ℝ} (hε : 0 < ε) :
+    ∃ G : ℝ → ℂ, ContDiff ℝ (∞) G ∧ tsupport G ⊆ Icc 0 ε ∧
+      bilateralLaplace G r ≠ 0 ∧ ∀ i, bilateralLaplace G (w i) = 0 :=
+  exists_compact_probe_complex w (r:ℂ) hne hs hε
 
 /-- A sparse family of bilateral Laplace zeros is compatible with prescribing the
 value one at the center of any open interval. -/
@@ -307,21 +326,21 @@ theorem exists_compact_probe_at {ι : Type*} (w : ι → ℂ) (r : ℝ) (hne : �
           simp only [bilateralLaplace, H, mul_assoc, integral_const_mul]
       _ = 0 := by rw [bilateralLaplace_translate, hz, zero_mul, mul_zero]
 
-private theorem exists_moment_cardinal {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
-    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℝ) (hr : Function.Injective r)
+private theorem exists_complex_moment_cardinal {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
+    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℂ) (hr : Function.Injective r)
     (hw : ∀ i j, w i ≠ r j) (j : κ) (a : ℝ) {b : ℝ} (hb : 0 < b) :
     ∃ H : ℝ → ℂ, ContDiff ℝ (∞) H ∧ tsupport H ⊆ Icc a (a + b) ∧
       (∀ i, bilateralLaplace H (w i) = 0) ∧
       ∀ k, bilateralLaplace H (r k) = if k = j then 1 else 0 := by
   classical
-  let W : ι ⊕ {k : κ // k ≠ j} → ℂ := Sum.elim w (fun k ↦ (r k.val : ℂ))
+  let W : ι ⊕ {k : κ // k ≠ j} → ℂ := Sum.elim w (fun k ↦ (r k.val))
   have hn (i) : W i ≠ r j := by
     cases i with
     | inl i => exact hw i j
-    | inr k => exact fun h ↦ k.property (hr (Complex.ofReal_injective h))
+    | inr k => exact fun h ↦ k.property (hr h)
   have hsum : Summable (fun i ↦ 1 / (1 + |(W i).im|)) :=
     Summable.sum _ hs (hasSum_fintype _).summable
-  obtain ⟨G, hg, hG, hnG, hz⟩ := exists_compact_probe W (r j) hn hsum hb
+  obtain ⟨G, hg, hG, hnG, hz⟩ := exists_compact_probe_complex W (r j) hn hsum hb
   let A := bilateralLaplace G (r j) * cexp (r j * a : ℂ)
   have hA : A ≠ 0 := mul_ne_zero hnG (Complex.exp_ne_zero _)
   let H (x : ℝ) := A⁻¹ * G (x - a)
@@ -340,26 +359,34 @@ private theorem exists_moment_cardinal {ι κ : Type*} [Fintype κ] (w : ι → 
     · subst k; exact inv_mul_cancel₀ hA
     · rw [show bilateralLaplace G (r k) = 0 from hz (.inr ⟨k, he⟩), zero_mul, mul_zero]
 
+private theorem exists_moment_cardinal {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
+    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℝ) (hr : Function.Injective r)
+    (hw : ∀ i j, w i ≠ r j) (j : κ) (a : ℝ) {b : ℝ} (hb : 0 < b) :
+    ∃ H : ℝ → ℂ, ContDiff ℝ (∞) H ∧ tsupport H ⊆ Icc a (a + b) ∧
+      (∀ i, bilateralLaplace H (w i) = 0) ∧
+      ∀ k, bilateralLaplace H (r k) = if k = j then 1 else 0 :=
+  exists_complex_moment_cardinal w hs (fun k ↦ (r k : ℂ)) (Complex.ofReal_injective.comp hr) hw j a hb
+
 /-- A compact smooth probe in a prescribed short window can interpolate finitely
-many real Laplace moments and one physical sample while cancelling an infinite
+many complex Laplace moments and one physical sample while cancelling an infinite
 sparse frequency family. The correcting probes are supported to the right of the
 physical sample. -/
-theorem exists_interpolating_probe {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
-    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℝ) (hr : Function.Injective r)
+theorem exists_complex_interpolating_probe {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
+    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℂ) (hr : Function.Injective r)
     (hw : ∀ i j, w i ≠ r j) (r₀ : ℝ) (hw₀ : ∀ i, w i ≠ r₀)
     (hr₀ : ∀ j, r j ≠ r₀) (v : κ → ℂ) (c : ℝ) {ε : ℝ} (hε : 0 < ε) :
     ∃ H : ℝ → ℂ, ContDiff ℝ (∞) H ∧ tsupport H ⊆ Icc (c - ε) (c + ε) ∧ H c = 1 ∧
       (∀ i, bilateralLaplace H (w i) = 0) ∧ ∀ j, bilateralLaplace H (r j) = v j := by
   classical
-  let W : ι ⊕ κ → ℂ := Sum.elim w (fun j ↦ (r j : ℂ))
+  let W : ι ⊕ κ → ℂ := Sum.elim w r
   have hn (i) : W i ≠ r₀ := by
     cases i with
     | inl i => exact hw₀ i
-    | inr j => exact fun h ↦ hr₀ j (Complex.ofReal_injective h)
+    | inr j => exact fun h ↦ hr₀ j h
   have hsum : Summable (fun i ↦ 1 / (1 + |(W i).im|)) :=
     Summable.sum _ hs (hasSum_fintype _).summable
   obtain ⟨G, hg, hG, hGc, hz⟩ := exists_compact_probe_at W r₀ hn hsum c hε
-  choose F hd hF hFw hFr using fun j ↦ exists_moment_cardinal w hs r hr hw j (c + ε / 2) (half_pos hε)
+  choose F hd hF hFw hFr using fun j ↦ exists_complex_moment_cardinal w hs r hr hw j (c + ε / 2) (half_pos hε)
   let H (x : ℝ) := G x + ∑ j, v j * F j x
   let J := Icc (c - ε) (c + ε)
   have hb (j) : tsupport (F j) ⊆ J :=
@@ -395,5 +422,18 @@ theorem exists_interpolating_probe {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
     simp [hFw]
   · rw [hM, show bilateralLaplace G (r j) = 0 from hz (.inr j)]
     simp [hFr]
+
+/-- A compact smooth probe in a prescribed short window can interpolate finitely
+many real Laplace moments and one physical sample while cancelling an infinite
+sparse frequency family. The correcting probes are supported to the right of the
+physical sample. -/
+theorem exists_interpolating_probe {ι κ : Type*} [Fintype κ] (w : ι → ℂ)
+    (hs : Summable fun i ↦ 1 / (1 + |(w i).im|)) (r : κ → ℝ) (hr : Function.Injective r)
+    (hw : ∀ i j, w i ≠ r j) (r₀ : ℝ) (hw₀ : ∀ i, w i ≠ r₀)
+    (hr₀ : ∀ j, r j ≠ r₀) (v : κ → ℂ) (c : ℝ) {ε : ℝ} (hε : 0 < ε) :
+    ∃ H : ℝ → ℂ, ContDiff ℝ (∞) H ∧ tsupport H ⊆ Icc (c - ε) (c + ε) ∧ H c = 1 ∧
+      (∀ i, bilateralLaplace H (w i) = 0) ∧ ∀ j, bilateralLaplace H (r j) = v j :=
+  exists_complex_interpolating_probe w hs (fun j ↦ (r j : ℂ)) (Complex.ofReal_injective.comp hr) hw r₀ hw₀
+    (fun j h ↦ hr₀ j (Complex.ofReal_injective h)) v c hε
 
 end RiemannMasullo.SparseLaplace
