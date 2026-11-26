@@ -213,6 +213,15 @@ private theorem trace_eq_of_annihilating {δ a s : ℝ} (hδ : δ ≤ a) (ha : 0
   · rw [spectralStripMultiplicity_interior (abs_lt.mp ((lt_of_not_ge hb).trans_le hδ))]
     simp
 
+/-- A rational radial test annihilating the closed exterior has its full signed trace at every larger width. -/
+theorem hilbertTrace_eq_centered_of_exterior_vanishing {δ a s : ℝ} (hδ : δ ≤ a) (ha : 0 ≤ a) (hs : 1 < s)
+    (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hc : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0)
+    (hz : ∀ ρ : Ext(δ), bilateralLaplace H (ρ.val.val - 1 / 2) = 0)
+    (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
+    (T : nuclearEndomorphisms Q(ha, hs)) (hT : rep(T, φ, ha, hs)) :
+    hilbertTrace T = V * centeredVonMangoldtValue H :=
+  trace_eq_of_annihilating hδ ha hs H hH hc hp hz φ hφ T hT
+
 private theorem radial_pole_eq (H : ℝ → ℂ) (hH : Continuous H) (φ : BruhatCompactSupport Cℚ)
     (hφ : radial(φ, H)) (z : ℂ) : pole(φ, z) = V * bilateralLaplace H z := by
   rw [normTest_mellin H hH φ hφ]

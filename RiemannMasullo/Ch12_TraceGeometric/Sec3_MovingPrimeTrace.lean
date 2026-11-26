@@ -2,7 +2,6 @@ module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_MovingPrimeLevel
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_ExactPrimeTrace
-import all RiemannMasullo.Ch12_TraceGeometric.Sec3_ExactPrimeTrace
 import RiemannMasullo.ForMathlib.Analysis.Fourier.SparseLaplaceProbe
 
 /-! # Signed comparison of translated narrow traces with the first prime shell -/
@@ -112,7 +111,7 @@ theorem exists_translated_primeLevel_stripTrace {ι : Type*} [Fintype ι] (γ : 
   have hpos : tsupport G ⊆ Ioi 0 := fun _ h ↦ hl.trans_le (hW h).1
   have hann (z : Ext(δ)) : B(G,z.val.val-1/2) = 0 := by
     rw [SparseLaplace.bilateralLaplace_translate, hz z, zero_mul]
-  rw [trace_eq_of_annihilating hδa ha hs G hG hk hpos hann φ hφ T hT]
+  rw [hilbertTrace_eq_centered_of_exterior_vanishing hδa ha hs G hG hk hpos hann φ hφ T hT]
   exact hlim
 
 end RiemannMasullo.RationalWidthLoss

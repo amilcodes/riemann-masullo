@@ -1,9 +1,8 @@
 module
 
 public import RiemannMasullo.Ch12_TraceGeometric.Sec3_RadialPrimeTrace
-import all RiemannMasullo.Ch12_TraceGeometric.Sec3_RadialPrimeTrace
-import all RiemannMasullo.Ch12_TraceGeometric.Sec3_ZetaPositiveLog
-import all RiemannMasullo.Ch01_Introduction.Sec4
+import RiemannMasullo.Ch01_Introduction.Sec4
+import Mathlib.NumberTheory.NumberField.Discriminant.Different
 import Mathlib.NumberTheory.Padics.HeightOneSpectrum
 
 /-! # Removing the first prime shell by a moving finite-place cutoff
@@ -51,7 +50,7 @@ def rationalPrimeLevel (u : ℝ) : Finset Pl :=
     v ∈ rationalPrimeLevel u ↔ Real.log q(v) ≤ u/2 := by
   rw [rationalPrimeLevel, Finset.mem_filter, and_iff_right_of_imp]
   intro h
-  have hq : 0 < q(v) := by rw [rational_norm]; exact_mod_cast (Rat.HeightOneSpectrum.primesEquiv v).property.pos
+  have hq : 0 < q(v) := by rw [rat_absNorm_eq_prime]; exact_mod_cast (Rat.HeightOneSpectrum.primesEquiv v).property.pos
   have he := (Real.log_le_iff_le_exp hq).mp h
   simpa using (show v.asIdeal.absNorm ≤ ⌈Real.exp (u/2)⌉₊ by exact_mod_cast he.trans (Nat.le_ceil _))
 
@@ -65,7 +64,7 @@ private theorem outside_prime_shell {l u : ℝ} (hl : 0 < l) (H : ℝ → ℂ)
     (hφ : ∀ x, b.val x = introTraceTest X (fun t ↦ H (Real.log t))
       (IdeleClassGroup.ofAdicCompletion (𝓞 ℚ) ℚ v x)) :
     finPV(v,b) = ((Real.log q(v) / Real.sqrt q(v) : ℝ) : ℂ) * H (Real.log q(v)) := by
-  have hq : 1 < q(v) := by rw [rational_norm]; exact_mod_cast (Rat.HeightOneSpectrum.primesEquiv v).property.one_lt
+  have hq : 1 < q(v) := by rw [rat_absNorm_eq_prime]; exact_mod_cast (Rat.HeightOneSpectrum.primesEquiv v).property.one_lt
   have hlog := Real.log_pos hq
   have hcut : u/2 < Real.log q(v) := lt_of_not_ge fun h ↦ hv ((mem_rationalPrimeLevel _ _).mpr h)
   have hlo {x : ℝ} (hx : x < l) : H x = 0 := by
@@ -74,10 +73,11 @@ private theorem outside_prime_shell {l u : ℝ} (hl : 0 < l) (H : ℝ → ℂ)
   have hhi {x : ℝ} (hx : u < x) : H x = 0 := by
     by_contra hn
     exact hx.not_ge (hb (subset_tsupport H hn)).2
-  rw [introTrace_characterTrace_finite X (fun t ↦ H (Real.log t)) (by simpa using hlo hl) v b hφ,
+  rw [introTrace_finite_eq_tsum_primePower X (fun t ↦ H (Real.log t)) (by simpa using hlo hl) v b hφ,
     tsum_eq_single 0, introTracePrimePower_one_first, Real.log_inv, hlo (by linarith : -Real.log q(v) < l), add_zero]
-  · have he := introTrace_characterTrace_sqrt q(v) (by linarith) 1
-    simp only [pow_one, Nat.cast_one] at he
+  · have he : ((Real.sqrt q(v) : ℝ) : ℂ) = (q(v) : ℂ)^(1/2 : ℂ) := by
+      rw [Real.sqrt_eq_rpow, Complex.ofReal_cpow (by linarith : 0 ≤ q(v))]
+      norm_num
     rw [← he, Complex.ofReal_div]
     ring
   · intro k hk
@@ -118,7 +118,7 @@ private theorem split_prime_places {l u : ℝ} (hl : 0 < l) (hlu : u/2 < l)
     simp [introTraceTest]
   have he : (∑' v : Pl, term v) = rationalFirstPrimeSum H := by
     rw [rationalFirstPrimeSum, ← (Rat.HeightOneSpectrum.primesEquiv (R := 𝓞 ℚ)).tsum_eq]
-    exact tsum_congr fun v ↦ by simp only [term, rational_norm]
+    exact tsum_congr fun v ↦ by simp only [term, rat_absNorm_eq_prime]
   have hall : (∑' v : {v : Pl // v ∉ S}, term v.val) = ∑' v : Pl, term v := by
     apply tsum_subtype_eq_of_support_subset (s := {v : Pl | v ∉ S}) (f := term)
     intro v hv
@@ -151,8 +151,8 @@ theorem exists_primeLevel_signed_comparison (hl : 0 < l) (hlu : u/2 < l)
   have hk : HasCompactSupport H := isCompact_Icc.of_isClosed_subset (isClosed_tsupport _) hb
   have hp : tsupport H ⊆ Ioi 0 := fun _ h ↦ hl.trans_le (hb h).1
   obtain ⟨φ,hφ⟩ := exists_normTest (F := ℚ) H hH hk
-  have hPic := radial_pic Sᵤ
-  have hOutside := radial_outside (S := Sᵤ) H φ hφ
+  have hPic := subsingleton_rational_sInteger_pic Sᵤ
+  have hOutside := rationalNormTest_outside_invariant (S := Sᵤ) H φ hφ
   obtain ⟨f,hf⟩ := exists_sLocalTraceLift hPic φ hOutside
   refine ⟨φ,f,hφ,hf,?_⟩
   have h0 : H 0 = 0 := by
@@ -163,7 +163,7 @@ theorem exists_primeLevel_signed_comparison (hl : 0 < l) (hlu : u/2 < l)
   let τ := π.comp ⟨canonicalIdeleNormSection ℚ, canonicalIdeleNormSection_continuous ℚ⟩
   have hτ : RightInverse τ (ideleClassNorm ℚ) := canonicalIdeleNormSection_rightInverse ℚ
   obtain ⟨A,b,hA,hb',hSum,hZ⟩ := traceFormula_of_half_le τ hτ φ (le_refl (1 / 2 : ℝ))
-  have hz := hZ.unique (radial_full_chart H hH hk hp φ hφ τ hτ)
+  have hz := hZ.unique (hasSum_rationalNormTest_fullTrace H hH hk hp φ hφ τ hτ)
   obtain ⟨A',b',J,hA',hb'',hJ,hj⟩ := sLocalTraceSharpMass_asymptotic φ hPic
     (rational_unramified Sᵤ) hOutside f hf
   have hArch : A' = A := funext fun w ↦ Subtype.ext (funext fun x ↦ (hA' w x).trans (hA w x).symm)

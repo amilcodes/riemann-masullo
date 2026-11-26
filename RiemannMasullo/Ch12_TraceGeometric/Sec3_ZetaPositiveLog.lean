@@ -41,6 +41,10 @@ private theorem rational_norm (v : V) : v.asIdeal.absNorm = (Rat.HeightOneSpectr
   rw [he, Ideal.absNorm_span_natCast, RingOfIntegers.rank, Module.finrank_self, pow_one]
   rfl
 
+/-- The ideal norm of a rational finite place is its corresponding rational prime. -/
+theorem rat_absNorm_eq_prime (v : V) : v.asIdeal.absNorm = (Rat.HeightOneSpectrum.primesEquiv v).val :=
+  rational_norm v
+
 private theorem prime_power_sum (H : ℝ → ℂ) :
     (∑' j : V × ℕ, (Real.log q(j.1) : ℂ) * H (((j.2 + 1 : ℕ) : ℝ) * Real.log q(j.1))) =
       (∑' n : ℕ, (Λ n : ℂ) * H (Real.log n)) := by

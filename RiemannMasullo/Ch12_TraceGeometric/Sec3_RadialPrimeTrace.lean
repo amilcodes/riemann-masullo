@@ -278,6 +278,13 @@ private theorem radial_full_chart (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) 
     change _ * M(φ, ψ, _) = 0
     rw [normTest_mellin H hH.continuous φ hφ, ite_eq_right hn, zero_mul, mul_zero]
 
+/-- The full positive-divisor trace for a rational radial test equals its centered von Mangoldt value. -/
+theorem hasSum_rationalNormTest_fullTrace (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hc : HasCompactSupport H)
+    (hp : tsupport H ⊆ Ioi 0) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
+    (τ : ℝ≥0ˣ →ₜ* Cℚ) (hτ : RightInverse τ (ideleClassNorm ℚ)) :
+    HasSum (fun z : sites(τ) ↦ term(φ, z)) (V * centeredVonMangoldtValue H) :=
+  radial_full_chart H hH hc hp φ hφ τ hτ
+
 section SharpMass
 
 attribute [local instance] instFiniteCompletionUnitsLocallyCompactSec4b
@@ -312,6 +319,10 @@ private theorem radial_pic (S : Finset Pl) : Subsingleton (CommRing.Pic ((S : Se
     (R := 𝓞 ℚ) (A := (S : Set Pl).integer ℚ)
   exact h.subsingleton
 
+/-- The rational S-integer class group is trivial for every finite level. -/
+theorem subsingleton_rational_sInteger_pic (S : Finset Pl) : Subsingleton (CommRing.Pic ((S : Set Pl).integer ℚ)) :=
+  radial_pic S
+
 private theorem radial_outside (H : ℝ → ℂ) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
     (u : outsideIntegralIdeleUnits ℚ S) (g : Cℚ) : φ.val (QuotientGroup.mk u.val * g) = φ.val g := by
   obtain ⟨harch, hS, hout⟩ := (mem_outsideIntegralIdeleUnits_iff u.val).mp u.property
@@ -332,6 +343,11 @@ private theorem radial_outside (H : ℝ → ℂ) (φ : BruhatCompactSupport Cℚ
   rw [hφ, hφ, map_mul]
   change H (Real.log ((((ideleNorm ℚ u.val * ideleClassNorm ℚ g).val : ℝ≥0) : ℝ))) = _
   rw [hn, one_mul]
+
+/-- A rational radial test is invariant under integral units outside any finite level. -/
+theorem rationalNormTest_outside_invariant (H : ℝ → ℂ) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
+    (u : outsideIntegralIdeleUnits ℚ S) (g : Cℚ) : φ.val (QuotientGroup.mk u.val * g) = φ.val g :=
+  radial_outside H φ hφ u g
 
 /-- Paper: §12.3, p. 514, and (12.4.1.25)–(12.4.1.28), p. 519. For a positive-log
 rational norm test, the negative of the polar-corrected sharp orbital mass tends to
