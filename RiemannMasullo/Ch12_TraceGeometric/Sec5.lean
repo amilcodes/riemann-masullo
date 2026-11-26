@@ -505,7 +505,7 @@ local notation "stripProjectedAction(" hα ", " hs ", " φ ")" =>
 /-- Paper: (10.4.3.45), p. 473 and (12.5.1.4), p. 520. On every symmetric closed strip, a
 projective kernel for convolution after spectral projection gives nuclear ambient and quotient
 actions with equal Hilbert traces. -/
-private theorem stripDiagonal_projective_trace {α s : ℝ} (hα : 0 ≤ α) (hs : 1 < s)
+theorem stripDiagonal_projective_trace {α s : ℝ} (hα : 0 ≤ α) (hs : 1 < s)
     (φ : BruhatCompactSupport C𝔽)
     (hK : ∃ K, sobolevProjectiveKernelOperator (F := F) hα sNonneg(hs) K =
       stripProjectedAction(hα, hs, φ)) :
