@@ -243,22 +243,31 @@ local notation "sites(" τ ")" => {z : χS(τ) × ℂ //
 local notation "term(" φ ", " z ")" => ((MeromorphicOn.divisor (continuedCompletedHeckeL (z).val.1.val)
   univ (z).val.2 : ℤ) : ℂ) * M(φ, (z).val.1.val, (z).val.2 - 1 / 2)
 
-private theorem radial_full_chart (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hc : HasCompactSupport H)
-    (hp : tsupport H ⊆ Ioi 0) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
-    (τ : ℝ≥0ˣ →ₜ* Cℚ) (hτ : RightInverse τ (ideleClassNorm ℚ)) :
-    HasSum (fun z : sites(τ) ↦ term(φ, z)) (V * centeredVonMangoldtValue H) := by
-  let Y := sites(τ)
-  let e (z : Z) : Y := ⟨(⟨1, by simp⟩, z.val),
-    by rw [divisor_rat_principal_eq_zeta]; exact z.property, completedZetaZero_mem_centeredCriticalStrip z⟩
-  have ei : Injective e := fun _ _ h ↦ Subtype.ext (congrArg (fun y : Y ↦ y.val.2) h)
-  apply (ei.hasSum_iff ?_).mp
-  · apply ((hasSum_zetaZeros_centeredVonMangoldt H hH hc hp).mul_left V).congr_fun
-    intro z
-    change (MeromorphicOn.divisor (continuedCompletedHeckeL X) univ z.val : ℂ) *
-        M(φ, X, z.val - 1 / 2) = _
-    rw [divisor_rat_principal_eq_zeta, radial_M H hH.continuous φ hφ,
-      show (r(z) : ℂ) = (D z.val : ℂ) by exact_mod_cast Int.toNat_of_nonneg z.property.le]
-    ring
+/-- Restricting the section-normalized idelic divisor of a radial test to any set of
+spectral points leaves only the principal row. The equivalence holds for the actual
+signed Mellin samples and every norm section. -/
+theorem hasSum_radialDivisor_restrict_iff (U : Set ℂ) (H : ℝ → ℂ) (hH : Continuous H)
+    (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H)) (τ : ℝ≥0ˣ →ₜ* Cℚ)
+    (hτ : RightInverse τ (ideleClassNorm ℚ)) (u : ℂ) :
+    HasSum (fun y : {p : χS(τ) × ℂ // 0 < MeromorphicOn.divisor
+        (continuedCompletedHeckeL p.1.val) univ p.2 ∧ p.2 ∈ U} ↦ term(φ, y)) u ↔
+      HasSum (fun z : {z : Z // z.val ∈ U} ↦
+        V * ((r(z.val) : ℂ) * bilateralLaplace H (z.val.val - 1 / 2))) u := by
+  let Y := {p : χS(τ) × ℂ // 0 < MeromorphicOn.divisor
+    (continuedCompletedHeckeL p.1.val) univ p.2 ∧ p.2 ∈ U}
+  let e (z : {z : Z // z.val ∈ U}) : Y := ⟨(⟨1, by simp⟩, z.val.val),
+    by rw [divisor_rat_principal_eq_zeta]; exact z.val.property, z.property⟩
+  have ei : Injective e := fun _ _ h ↦ Subtype.ext (Subtype.ext (congrArg (fun y : Y ↦ y.val.2) h))
+  rw [← ei.hasSum_iff (f := fun y : Y ↦ term(φ, y)) (a := u) ?_]
+  · have he : (fun y : Y ↦ term(φ, y)) ∘ e = fun z ↦
+        V * ((r(z.val) : ℂ) * bilateralLaplace H (z.val.val - 1 / 2)) := by
+      funext z
+      change (MeromorphicOn.divisor (continuedCompletedHeckeL X) univ z.val.val : ℂ) *
+          M(φ, X, z.val.val - 1 / 2) = _
+      rw [divisor_rat_principal_eq_zeta, radial_M H hH φ hφ,
+        show (r(z.val) : ℂ) = (D z.val.val : ℂ) by exact_mod_cast Int.toNat_of_nonneg z.val.property.le]
+      ring
+    rw [he]
   · intro y hy
     let ψ := y.val.1.val
     have hn : ¬ ∀ u : K, ψ u.val = 1 := by
@@ -274,9 +283,18 @@ private theorem radial_full_chart (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) 
       have hd := y.property.1
       change 0 < MeromorphicOn.divisor (continuedCompletedHeckeL ψ) univ y.val.2 at hd
       rw [hψ, divisor_rat_principal_eq_zeta] at hd
-      exact hy ⟨⟨y.val.2, hd⟩, Subtype.ext (Prod.ext (Subtype.ext hψ.symm) rfl)⟩
+      exact hy ⟨⟨⟨y.val.2, hd⟩, y.property.2⟩, Subtype.ext (Prod.ext (Subtype.ext hψ.symm) rfl)⟩
     change _ * M(φ, ψ, _) = 0
-    rw [normTest_mellin H hH.continuous φ hφ, ite_eq_right hn, zero_mul, mul_zero]
+    rw [normTest_mellin H hH φ hφ, ite_eq_right hn, zero_mul, mul_zero]
+
+private theorem radial_full_chart (H : ℝ → ℂ) (hH : ContDiff ℝ (∞) H) (hc : HasCompactSupport H)
+    (hp : tsupport H ⊆ Ioi 0) (φ : BruhatCompactSupport Cℚ) (hφ : radial(φ, H))
+    (τ : ℝ≥0ˣ →ₜ* Cℚ) (hτ : RightInverse τ (ideleClassNorm ℚ)) :
+    HasSum (fun z : sites(τ) ↦ term(φ, z)) (V * centeredVonMangoldtValue H) := by
+  apply (hasSum_radialDivisor_restrict_iff {z | |z.re - 1 / 2| < 1 / 2} H hH.continuous φ hφ τ hτ _).mpr
+  apply (Subtype.val_injective.hasSum_iff (fun z hn ↦
+    (hn ⟨⟨z, completedZetaZero_mem_centeredCriticalStrip z⟩, rfl⟩).elim)).mpr
+    ((hasSum_zetaZeros_centeredVonMangoldt H hH hc hp).mul_left V)
 
 section SharpMass
 

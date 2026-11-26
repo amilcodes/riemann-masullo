@@ -347,4 +347,66 @@ theorem realizable_singleWidthTrace_iff (H₀ : ℝ → ℂ) (hd₀ : ContDiff �
     · exact exists_simultaneous_signed_radial_trace H₀ hd₀ hc₀ hp₀ B _ _ (fun _ ↦ ha) _ _ _
     · exact single_trace_data_of_loss H₀ hd₀ hc₀ hp₀ B a s ha z hz v q P M
 
+private theorem exterior_of_order_one {a : ℝ} (H : ℝ → ℂ) {v : ℂ}
+    (hfull : HasSum (fun z : Z ↦ (m(z) : ℂ) * bilateralLaplace H (z.val - 1 / 2)) v)
+    (hopen : HasSum (fun z : Z ↦ (keep(a, 1, z) : ℂ) * bilateralLaplace H (z.val - 1 / 2)) v) :
+    HasSum (fun z : {z : Z // a ≤ |z.val.re - 1 / 2|} ↦
+      (m(z.val) : ℂ) * bilateralLaplace H (z.val.val - 1 / 2)) 0 := by
+  apply (hasSum_subtype_iff_indicator (s := {z : Z | a ≤ |z.val.re - 1 / 2|})
+    (f := fun z : Z ↦ (m(z) : ℂ) * bilateralLaplace H (z.val - 1 / 2))).mpr
+  rw [← sub_self v]
+  apply (hfull.sub hopen).congr_fun
+  intro z
+  by_cases he : a ≤ |z.val.re - 1 / 2|
+  · have hi : ¬ (-a < z.val.re - 1 / 2 ∧ z.val.re - 1 / 2 < a) := fun h ↦ he.not_gt (abs_lt.mpr h)
+    rw [Set.indicator_of_mem (show z ∈ {z : Z | a ≤ |z.val.re - 1 / 2|} from he)]
+    simp only [spectralStripMultiplicity, ite_eq_right hi, spectralBoundaryMultiplicity,
+      sub_self, zero_div, Nat.ceil_zero, Nat.min_zero, ite_self, Nat.cast_zero, zero_mul, sub_zero]
+  · have hi := abs_lt.mp (lt_of_not_ge he)
+    rw [Set.indicator_of_notMem (show z ∉ {z : Z | a ≤ |z.val.re - 1 / 2|} from he)]
+    simp only [spectralStripMultiplicity, ite_eq_left hi, sub_self]
+
+local notation "sectionRows(" τ ")" => {ψ : PontryaginDual Cℚ // ∀ t : ℝ≥0ˣ, ψ (τ t) = 1}
+local notation "extSites(" τ ", " a ")" => {y : sectionRows(τ) × ℂ // 0 <
+  MeromorphicOn.divisor (continuedCompletedHeckeL y.1.val) univ y.2 ∧ a ≤ |y.2.re - 1 / 2|}
+local notation "extTerm(" φ ", " y ")" =>
+  ((MeromorphicOn.divisor (continuedCompletedHeckeL (y).val.1.val) univ (y).val.2 : ℤ) : ℂ) *
+    modulatedFourierMellin (continuousIdeleClassNorm ℚ) univ
+      ⟨isProperMap_ideleClassNorm ℚ, ideleClassNorm_ne_one (F := ℚ)⟩ (ideleClassTamagawaMeasure ℚ)
+      (φ : BruhatCompactSupport Cℚ).val (ideleClassNormTwist (y).val.1.val ((y).val.2 - 1 / 2))
+
+/-- Paper: §12.3, p. 514, and Theorem 12.5.1.1, pp. 519–520. For any finite list
+of positive widths one test meets the signed local-to-Hilbert comparison and the
+paper's full exterior-zero cancellation, for every choice of norm section. Even
+when zeros lie exactly on a strip edge, the cancellation includes their full
+multiplicities, while the Hilbert trace counts the admitted boundary jets.
+Both polar moments, the common trace value, and the initial log profile are prescribed. -/
+theorem exists_signed_trace_with_exterior_cancellation [Fintype κ] (H₀ : ℝ → ℂ)
+    (hd₀ : ContDiff ℝ (∞) H₀) (hc₀ : HasCompactSupport H₀) (hp₀ : tsupport H₀ ⊆ Ioi 0)
+    (B : ℝ) (a s : κ → ℝ) (ha : ∀ k, 0 < a k) (v P M : ℂ) :
+    ∃ (H : ℝ → ℂ) (φ : BruhatCompactSupport Cℚ) (S : Finset Pl)
+      (f : BruhatCompactSupport (SAdeleRing ℚ S)ˣ),
+      ContDiff ℝ (∞) H ∧ HasCompactSupport H ∧ tsupport H ⊆ Ioi 0 ∧ EqOn H H₀ (Iic B) ∧
+      radial(φ, H) ∧ lifts(S, f, φ) ∧ pole(φ, (1 / 2)) = V * P ∧ pole(φ, (-(1 / 2))) = V * M ∧
+      centeredVonMangoldtValue H = v ∧
+      Tendsto (fun R : ℝ ↦ -rationalCorrectedSharpMass f R) atTop (𝓝 (V * v)) ∧
+      (∀ (k : κ) (hs : 1 < s k) (T : nuclearEndomorphisms Q((ha k).le, hs)),
+        rep(T, φ, (ha k).le, hs) → hilbertTrace T = V * v) ∧
+      ∀ (τ : ℝ≥0ˣ →ₜ* Cℚ), Function.RightInverse τ (ideleClassNorm ℚ) →
+        ∀ k, HasSum (fun y : extSites(τ, a k) ↦ extTerm(φ, y)) 0 := by
+  let widths (i : Bool × κ) := a i.2
+  let orders (i : Bool × κ) := if i.1 then s i.2 else 1
+  obtain ⟨H, φ, S, f, hd, hc, hp, hB, hφ, hf, hP, hM, hv, hspec, hlim, hT⟩ :=
+    exists_simultaneous_signed_radial_trace H₀ hd₀ hc₀ hp₀ B widths orders (fun i ↦ ha i.2) v P M
+  refine ⟨H, φ, S, f, hd, hc, hp, hB, hφ, hf, hP, hM, hv, hlim, ?_, ?_⟩
+  · intro k hs T h
+    exact hT (true, k) (ha k).le hs T h
+  intro τ hτ k
+  apply (hasSum_radialDivisor_restrict_iff {z | a k ≤ |z.re - 1 / 2|} H hd.continuous φ hφ τ hτ _).mpr
+  have h := exterior_of_order_one H (hv ▸ hasSum_zetaZeros_centeredVonMangoldt H hd hc hp)
+    (hspec (false, k))
+  rw [← mul_zero (V : ℂ)]
+  apply HasSum.mul_left
+  exact h
+
 end RiemannMasullo
