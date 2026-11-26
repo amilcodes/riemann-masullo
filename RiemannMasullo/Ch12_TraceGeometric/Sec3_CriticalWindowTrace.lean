@@ -169,43 +169,102 @@ def criticalOrbitMajorant (α y t : ℝ) : ℝ≥0∞ :=
   ENNReal.ofReal (negativeOrbitKernel α y) +
     ENNReal.ofReal ((9:ℝ)^(3/4:ℝ)) * ENNReal.ofReal (criticalWindowKernel α t (y-t))
 
-def criticalOrbitBound (α : ℝ) : ℝ := 2/(3*α) + (9:ℝ)^(3/4:ℝ)*(2/α)
-
-theorem measurable_criticalOrbitMajorant (α : ℝ) :
-    Measurable (Function.uncurry (criticalOrbitMajorant α)) :=
-  ((measurable_negativeOrbitKernel α).comp measurable_fst).ennreal_ofReal.add
-    (measurable_const.mul (((measurable_criticalWindowKernel α).comp
-      (measurable_snd.prodMk (measurable_fst.sub measurable_snd))).ennreal_ofReal))
+/-- Sum of the negative-half-line and positive-wedge Schur bounds. -/
+def criticalOrbitBound (α : ℝ) : ℝ := 20 / (3 * α)
 
 theorem criticalOrbitBound_nonneg {α : ℝ} (hα : 0 < α) : 0 ≤ criticalOrbitBound α := by
   unfold criticalOrbitBound; positivity
 
-theorem criticalOrbitMajorant_marginals {α : ℝ} (hα : 0 < α) (t : ℝ) :
-    (∫⁻ y : ℝ, criticalOrbitMajorant α y t) ≤ ENNReal.ofReal (criticalOrbitBound α) ∧
-    (∫⁻ y : ℝ, criticalOrbitMajorant α y (t+y)) ≤ ENNReal.ofReal (criticalOrbitBound α) := by
-  have bound (f : ℝ → ℝ≥0∞) (hf : Measurable f) (h : ∫⁻ y, f y ≤ ENNReal.ofReal (2/α)) :
-      (∫⁻ y : ℝ, ENNReal.ofReal (negativeOrbitKernel α y) + ENNReal.ofReal ((9:ℝ)^(3/4:ℝ))*f y) ≤
-        ENNReal.ofReal (criticalOrbitBound α) := by
-    rw [lintegral_add_left (measurable_negativeOrbitKernel α).ennreal_ofReal,
-      lintegral_negativeOrbitKernel hα, lintegral_const_mul _ hf,criticalOrbitBound,
-      ENNReal.ofReal_add (by positivity) (by positivity), ENNReal.ofReal_mul (by positivity)]
-    exact add_le_add le_rfl (mul_le_mul' le_rfl h)
-  constructor
-  · apply bound (fun y ↦ ENNReal.ofReal (criticalWindowKernel α t (y-t))) (((measurable_criticalWindowKernel α).comp
-      (measurable_const.prodMk (measurable_id.sub_const t))).ennreal_ofReal)
-    have he := lintegral_add_right_eq_self (μ := (volume : Measure ℝ))
-      (fun u ↦ ENNReal.ofReal (criticalWindowKernel α t u)) (-t)
+private theorem lintegral_add_scaled {G : Type*} [MeasurableSpace G] (μ : Measure G) [SigmaFinite μ]
+    (f k : ℝ → G → ℝ≥0∞) (hf : Measurable (Function.uncurry f)) (hk : Measurable (Function.uncurry k))
+    (c : ℝ≥0∞) :
+    (∫⁻ y : ℝ, ∫⁻ x, f y x+c*k y x ∂μ) =
+      (∫⁻ y : ℝ, ∫⁻ x, f y x ∂μ) + c*(∫⁻ y : ℝ, ∫⁻ x, k y x ∂μ) := by
+  have hI (y : ℝ) : (∫⁻ x, f y x+c*k y x ∂μ) = (∫⁻ x, f y x ∂μ) + c*(∫⁻ x, k y x ∂μ) := by
+    rw [lintegral_add_left (hf.of_uncurry_left (x := y)),lintegral_const_mul c (hk.of_uncurry_left (x := y))]
+  simp_rw [hI]
+  have hf' : Measurable (fun y : ℝ ↦ ∫⁻ x, f y x ∂μ) := hf.lintegral_prod_right'
+  have hk' : Measurable (fun y : ℝ ↦ ∫⁻ x, k y x ∂μ) := hk.lintegral_prod_right'
+  rw [lintegral_add_left hf',lintegral_const_mul c hk']
+
+set_option maxHeartbeats 700000 in
+/-- The two marginals have different masses. Apply Schur separately to the
+negative half-line and the positive wedge to retain their geometric mean. -/
+private theorem critical_schur {G : Type*} [Group G] [MeasurableSpace G] [MeasurableMul₂ G]
+    [MeasurableInv G] (μ : Measure G) [SigmaFinite μ] [μ.IsMulLeftInvariant] (g : ℝ → G)
+    (hg : Measurable g) (ℓ : G → ℝ) (hℓ : Measurable ℓ) (hshift : ∀ y x, ℓ (g y*x) = ℓ x+y)
+    {α : ℝ} (hα : 0 < α) {u v : G → ℝ≥0∞} (hu : Measurable u) (hv : Measurable v)
+    {U V : ℝ≥0∞} (hU : (∫⁻ x, u x^2 ∂μ) = U^2) (hV : (∫⁻ x, v x^2 ∂μ) = V^2) :
+    (∫⁻ y : ℝ, ∫⁻ x, criticalOrbitMajorant α y (ℓ x)*u ((g y)⁻¹*x)*v x ∂μ) ≤
+      ENNReal.ofReal (20/(3*α))*U*V := by
+  let d (y _t : ℝ) := ENNReal.ofReal (negativeOrbitKernel α y)
+  let k (y t : ℝ) := ENNReal.ofReal (criticalWindowKernel α t (y-t))
+  let c := ENNReal.ofReal ((9:ℝ)^(3/4:ℝ))
+  let A := ENNReal.ofReal (2/(3*α))
+  let B := ENNReal.ofReal (2/α)
+  have hd : Measurable (Function.uncurry d) := ((measurable_negativeOrbitKernel α).comp measurable_fst).ennreal_ofReal
+  have hk : Measurable (Function.uncurry k) := ((measurable_criticalWindowKernel α).comp
+    (measurable_snd.prodMk (measurable_fst.sub measurable_snd))).ennreal_ofReal
+  have hdA (t : ℝ) : (∫⁻ y : ℝ, d y t) ≤ A := (lintegral_negativeOrbitKernel hα).le
+  have hdB (t : ℝ) : (∫⁻ y : ℝ, d y (t+y)) ≤ A := (lintegral_negativeOrbitKernel hα).le
+  have hkA (t : ℝ) : (∫⁻ y : ℝ, k y t) ≤ A := by
+    dsimp only [k]
     simp only [sub_eq_add_neg]
-    rw [he]
-    exact (lintegral_criticalWindowKernel_row_le hα t).trans (ENNReal.ofReal_le_ofReal
-      (by apply div_le_div_of_nonneg_left (by norm_num) hα; linarith))
-  · unfold criticalOrbitMajorant
+    rw [lintegral_add_right_eq_self (μ := (volume : Measure ℝ))
+      (fun u ↦ ENNReal.ofReal (criticalWindowKernel α t u)) (-t)]
+    exact lintegral_criticalWindowKernel_row_le hα t
+  have hkB (t : ℝ) : (∫⁻ y : ℝ, k y (t+y)) ≤ B := by
+    dsimp only [k]
     simp only [show ∀ y : ℝ, y-(t+y) = -t by intro y; ring]
-    apply bound (fun y ↦ ENNReal.ofReal (criticalWindowKernel α (t+y) (-t))) (((measurable_criticalWindowKernel α).comp
-      ((measurable_const.add measurable_id).prodMk measurable_const)).ennreal_ofReal)
     rw [lintegral_add_left_eq_self (μ := (volume : Measure ℝ))
       (fun x ↦ ENNReal.ofReal (criticalWindowKernel α x (-t))) t]
     exact lintegral_criticalWindowKernel_column_le hα (-t)
+  let J (q : ℝ → ℝ → ℝ≥0∞) (y : ℝ) (x : G) := q y (ℓ x)*u ((g y)⁻¹*x)*v x
+  have hm (q : ℝ → ℝ → ℝ≥0∞) (hq : Measurable (Function.uncurry q)) : Measurable (Function.uncurry (J q)) :=
+    ((hq.comp (measurable_fst.prodMk (hℓ.comp measurable_snd))).mul
+      (hu.comp ((hg.comp measurable_fst).inv.mul measurable_snd))).mul (hv.comp measurable_snd)
+  have hsplit : (∫⁻ y : ℝ, ∫⁻ x, criticalOrbitMajorant α y (ℓ x)*u ((g y)⁻¹*x)*v x ∂μ) =
+      (∫⁻ y : ℝ, ∫⁻ x, J d y x ∂μ) + c*(∫⁻ y : ℝ, ∫⁻ x, J k y x ∂μ) := by
+    have he (y : ℝ) (x : G) : criticalOrbitMajorant α y (ℓ x)*u ((g y)⁻¹*x)*v x =
+        J d y x + c*J k y x := by dsimp [criticalOrbitMajorant,J,d,k,c]; ring
+    simp_rw [he]
+    exact lintegral_add_scaled μ (J d) (J k) (hm d hd) (hm k hk) c
+  have schur (q : ℝ → ℝ → ℝ≥0∞) (hq : Measurable (Function.uncurry q)) {R C : ℝ≥0∞}
+      (hr : ∀ t, (∫⁻ y : ℝ, q y t) ≤ R) (hc : ∀ t, (∫⁻ y : ℝ, q y (t+y)) ≤ C) :
+      (∫⁻ y : ℝ, ∫⁻ x, J q y x ∂μ) ≤ (C*R)^(1/2:ℝ)*U*V := by
+    have h := lintegral_orbit_schur μ g hg ℓ hℓ hshift q hq hr hc hu hv
+    rw [hU,hV] at h
+    apply h.trans_eq
+    simp only [ENNReal.mul_rpow_of_nonneg _ _ (show (0:ℝ) ≤ 1/2 by norm_num)]
+    rw [← ENNReal.rpow_two U,← ENNReal.rpow_mul,← ENNReal.rpow_two V,← ENNReal.rpow_mul]
+    norm_num
+    ring
+  rw [hsplit]
+  apply (add_le_add (schur d hd hdA hdB) (mul_le_mul' (le_refl c) (schur k hk hkA hkB))).trans_eq
+  have hcoeff : (A*A)^(1/2:ℝ) + c*(B*A)^(1/2:ℝ) = ENNReal.ofReal (20/(3*α)) := by
+    rw [← sq A,← ENNReal.rpow_two,← ENNReal.rpow_mul]
+    norm_num
+    have hA : 0 ≤ 2/(3*α) := by positivity
+    have hB : 0 ≤ 2/α := by positivity
+    have h9 : (9:ℝ)^(3/4:ℝ) = 3*Real.sqrt 3 := by
+      rw [show (9:ℝ) = 3^(2:ℝ) by norm_num,← Real.rpow_mul (by norm_num)]
+      rw [show (2:ℝ)*(3/4) = 1+1/2 by ring,Real.rpow_add (by norm_num),Real.rpow_one,← Real.sqrt_eq_rpow]
+    have hs : Real.sqrt ((2/α)*(2/(3*α))) = 2/(Real.sqrt 3*α) := by
+      apply (Real.sqrt_eq_iff_eq_sq (mul_nonneg hB hA) (by positivity)).mpr
+      have h₃ := Real.sq_sqrt (by norm_num : (0:ℝ) ≤ 3)
+      have hn : Real.sqrt 3 ≠ 0 := by positivity
+      field_simp
+      nlinarith
+    dsimp only [A,B,c]
+    rw [← ENNReal.ofReal_mul hB,ENNReal.ofReal_rpow_of_nonneg (mul_nonneg hB hA) (by norm_num),
+      ← ENNReal.ofReal_mul (by positivity),← ENNReal.ofReal_add hA (by positivity),
+      ← Real.sqrt_eq_rpow,hs,h9]
+    congr 1
+    have h₃ : Real.sqrt 3 ≠ 0 := by positivity
+    field_simp
+    ring
+  rw [← hcoeff]
+  ring
 
 end RiemannMasullo
 end
@@ -229,6 +288,7 @@ private theorem continuous_orbit_density (α : ℝ) : Continuous (intervalSobole
   refine Continuous.mul (by fun_prop) (Continuous.rpow_const (by fun_prop) fun t ↦ Or.inl ?_)
   positivity
 
+omit [Group G] [MeasurableMul₂ G] [MeasurableInv G] [SigmaFinite μ] [μ.IsMulLeftInvariant] in
 private theorem normalized_leg_energy (hℓ : Measurable ℓ) (hα : 0 ≤ α) (u : W) :
     (∫⁻ x, E(u,x)^2 ∂μ) = ‖u‖ₑ ^ 2 := by
   have hd : Measurable (fun x : G ↦ ENNReal.ofReal (intervalSobolevDensity (-α) α 3 (ℓ x))) :=
@@ -245,6 +305,7 @@ private theorem normalized_leg_energy (hℓ : Measurable ℓ) (hα : 0 ≤ α) (
 def movingTracePair (m : ℝ → G → ℂ) (u v : W) (y : ℝ) : ℂ :=
   ∫ x : G, conj (v x) * (m y x * u ((g y)⁻¹*x)) ∂ν
 
+omit [μ.IsMulLeftInvariant] in
 theorem measurable_movingTracePair (hg : Measurable g)
     {m : ℝ → G → ℂ} (hm : Measurable (Function.uncurry m)) (u v : W) :
     Measurable (movingTracePair μ g ℓ α m u v) := by
@@ -253,6 +314,7 @@ theorem measurable_movingTracePair (hg : Measurable g)
       (hm.mul ((Lp.stronglyMeasurable u).measurable.comp ((hg.comp measurable_fst).inv.mul measurable_snd)))
   exact hm'.stronglyMeasurable.integral_prod_right'.measurable
 
+omit [MeasurableMul₂ G] [MeasurableInv G] [SigmaFinite μ] [μ.IsMulLeftInvariant] in
 private theorem movingPair_pointwise (hℓ : Measurable ℓ) (hα : 0 < α)
     (hshift : ∀ y x, ℓ (g y*x) = ℓ x+y)
     {m : ℝ → G → ℂ} (hb : ∀ y x, ‖m y x‖ ≤ 1)
@@ -297,19 +359,13 @@ theorem lintegral_movingTracePair_le (hg : Measurable g) (hℓ : Measurable ℓ)
       ENNReal.ofReal (criticalOrbitBound α)*‖u‖ₑ*‖v‖ₑ := by
   have he (u : W) : Measurable (fun x : G ↦ E(u,x)) :=
     (((continuous_criticalStripRoot α).measurable.comp hℓ).ennreal_ofReal).mul (Lp.stronglyMeasurable u).measurable.eNorm
-  have h := lintegral_orbit_schur μ g hg ℓ hℓ hshift _ (measurable_criticalOrbitMajorant α)
-    (fun t ↦ (criticalOrbitMajorant_marginals hα t).1) (fun t ↦ (criticalOrbitMajorant_marginals hα t).2)
-    (he u) (he v)
-  rw [normalized_leg_energy μ ℓ α hℓ hα.le u, normalized_leg_energy μ ℓ α hℓ hα.le v] at h
+  have h := critical_schur μ g hg ℓ hℓ hshift hα (he u) (he v)
+    (normalized_leg_energy μ ℓ α hℓ hα.le u) (normalized_leg_energy μ ℓ α hℓ hα.le v)
   have hle : (∫⁻ y in Ioi (0:ℝ), ENNReal.ofReal (Real.exp (-α*y/2))*‖movingTracePair μ g ℓ α m u v y‖ₑ) ≤
       ∫⁻ y in Ioi (0:ℝ), ∫⁻ x, K(y,x)*E(u,(g y)⁻¹*x)*E(v,x) ∂μ :=
     lintegral_mono_ae ((ae_restrict_mem (μ := volume) (measurableSet_Ioi (a := (0:ℝ)))).mono fun y hy ↦
       movingPair_pointwise μ g ℓ α hℓ hα hshift hb hs u v (y := y) hy)
-  apply hle.trans ((setLIntegral_le_lintegral _ _).trans (h.trans_eq ?_))
-  rw [ENNReal.mul_rpow_of_nonneg _ _ (by norm_num),ENNReal.mul_rpow_of_nonneg _ _ (by norm_num),
-    ← ENNReal.rpow_two ‖u‖ₑ,← ENNReal.rpow_mul,← ENNReal.rpow_two ‖v‖ₑ,← ENNReal.rpow_mul,
-    mul_mul_mul_comm,← ENNReal.rpow_add_of_nonneg _ _ (by norm_num) (by norm_num)]
-  norm_num [mul_assoc]
+  exact hle.trans ((setLIntegral_le_lintegral _ _).trans h)
 
 end RiemannMasullo
 end
