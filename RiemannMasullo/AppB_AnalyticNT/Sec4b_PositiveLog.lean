@@ -162,4 +162,34 @@ theorem hasSum_heckeExplicitFormula_positiveLog (χ : U(F)) (G : ℝ → ℂ)
         (((1 : ℝ) : ℂ) * (1 / 2 + (p.1 + (p.2.natAbs : ℂ) / 2))) := by push_cast; ring
     rw [he, positiveLog_gamma hs zero_lt_one]
 
+/-- The principal completed Hecke divisor has simple poles at zero and one,
+and is nonnegative at every other point. This applies to any meromorphic
+normal-form representative of the continuation. -/
+theorem principalHeckeDivisor_poles {F : Type*} [Field F] [NumberField F] (L : ℂ → ℂ)
+    (hL : MeromorphicNFOn L univ)
+    (hAgree : ∀ s : Complex.re ⁻¹' Ioi 1, L s = completedHeckeL
+      (1 : PontryaginDual (IdeleClassGroup (𝓞 F) F)) s) :
+    MeromorphicOn.divisor L univ 0 = -1 ∧ MeromorphicOn.divisor L univ 1 = -1 ∧
+      ∀ z, z ≠ 0 → z ≠ 1 → 0 ≤ MeromorphicOn.divisor L univ z := by
+  have han := completedHeckeL_one_analyticOnNhd L hL hAgree
+  obtain ⟨t, ⟨_, h0, h1, _⟩, _⟩ := completedHeckeL_continuation_simplePoles 1 L hL hAgree rfl
+  have ht : t = 0 := by
+    by_contra hn
+    have hne : Complex.I * (t : ℂ) ≠ 0 := mul_ne_zero Complex.I_ne_zero (Complex.ofReal_ne_zero.mpr hn)
+    have hn1 : Complex.I * (t : ℂ) ≠ 1 := by
+      intro he
+      have := congrArg Complex.re he
+      simp [Complex.mul_re] at this
+    have hp := (han (Complex.I * (t : ℂ)) (by simp [hne, hn1])).meromorphicOrderAt_nonneg
+    rw [h0] at hp
+    change ((0 : ℤ) : WithTop ℤ) ≤ ((-1 : ℤ) : WithTop ℤ) at hp
+    exact (by decide : ¬ ((0 : ℤ) ≤ -1)) (WithTop.coe_le_coe.mp hp)
+  subst t
+  simp only [Complex.ofReal_zero, mul_zero, add_zero] at h0 h1
+  refine ⟨?_, ?_, fun z hz hz' ↦ ?_⟩
+  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), h0]; rfl
+  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), h1]; rfl
+  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), WithTop.untop₀_nonneg]
+    exact (han z (by simp [hz, hz'])).meromorphicOrderAt_nonneg
+
 end RiemannMasullo

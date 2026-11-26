@@ -117,29 +117,8 @@ private theorem zeta_agrees (s : Complex.re ⁻¹' Ioi (1 : ℝ)) : L₀ s = com
   field_simp [Complex.Gammaℝ_ne_zero_of_re_pos (zero_lt_one.trans hs)]
 
 private theorem principal_poles : d₀ 0 = -1 ∧ d₀ 1 = -1 ∧ ∀ z, z ≠ 0 → z ≠ 1 → 0 ≤ d₀ z := by
-  have hL := meromorphicNFOn_toMeromorphicNFOn completedRiemannZeta univ
-  have hAgree := zeta_agrees
-  have han := completedHeckeL_one_analyticOnNhd L₀ hL hAgree
-  obtain ⟨t, ⟨_, h0, h1, _⟩, _⟩ := completedHeckeL_continuation_simplePoles X L₀ hL hAgree rfl
-  have ht : t = 0 := by
-    by_contra hn
-    have hne : Complex.I * (t : ℂ) ≠ 0 := mul_ne_zero Complex.I_ne_zero (Complex.ofReal_ne_zero.mpr hn)
-    have hn1 : Complex.I * (t : ℂ) ≠ 1 := by
-      intro he
-      have := congrArg Complex.re he
-      simp [Complex.mul_re] at this
-    have hp := (han (Complex.I * (t : ℂ)) (by simp [hne, hn1])).meromorphicOrderAt_nonneg
-    rw [h0] at hp
-    change ((0 : ℤ) : WithTop ℤ) ≤ ((-1 : ℤ) : WithTop ℤ) at hp
-    exact (by decide : ¬ ((0 : ℤ) ≤ -1)) (WithTop.coe_le_coe.mp hp)
-  subst t
-  simp only [Complex.ofReal_zero, mul_zero, add_zero] at h0 h1
   rw [← zeta_meromorphic.divisor_of_toMeromorphicNFOn]
-  refine ⟨?_, ?_, fun z hz hz' ↦ ?_⟩
-  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), h0]; rfl
-  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), h1]; rfl
-  · rw [MeromorphicOn.divisor_apply hL.meromorphicOn (mem_univ _), WithTop.untop₀_nonneg]
-    exact (han z (by simp [hz, hz'])).meromorphicOrderAt_nonneg
+  exact principalHeckeDivisor_poles L₀ (meromorphicNFOn_toMeromorphicNFOn _ _) zeta_agrees
 
 private theorem add_poles (H : ℝ → ℂ) {A : ℂ}
     (h : HasSum (fun z : ℂ ↦ (d₀ z : ℂ) * M(H, z)) A) :

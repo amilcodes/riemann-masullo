@@ -244,4 +244,8 @@ theorem physicalCenteredRetained_tendsto {ι : Type*} {l : Filter ι} {q : ι �
   exact .of_forall fun i ↦ (physicalCenteredRetained_eq _ _ _ hH.continuous _
     (selectedCylinder_spec _ _ H hH hc) α s).symm
 
+/-- Every positive site of a completed idelic divisor lies in the open critical strip. -/
+theorem rowZeroSites_mem_criticalStrip (ψ : PontryaginDual Cℚ) (z : rowZeroSites ψ) :
+    z.val.re ∈ Ioo (0 : ℝ) 1 := row_site_in_strip ψ z
+
 end RiemannMasullo.ConductorCylinder
