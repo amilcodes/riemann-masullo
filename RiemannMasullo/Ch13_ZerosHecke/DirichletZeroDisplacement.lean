@@ -27,11 +27,12 @@ open scoped Topology BigOperators Asymptotics ComplexConjugate
 public noncomputable section
 namespace RiemannMasullo
 
-private theorem dirichletZero_partial_sum_bound {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) (n : ℕ) :
-    ‖∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)‖ ≤ (q : ℝ) / 2 := by
+/-- The partial sums of a nonprincipal Dirichlet character have period its level. -/
+theorem dirichletCharacter_partial_sum_mod {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) (n : ℕ) :
+    (∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)) = ∑ j ∈ Finset.Icc 1 (n%q), χ (j : ZMod q) := by
   let a (j : ℕ) := χ ((j : ZMod q) + 1)
   let S (n : ℕ) := ∑ j ∈ Finset.range n, a j
-  have hs : ∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q) = S n := by
+  have hs (n : ℕ) : ∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q) = S n := by
     rw [← Finset.Ico_succ_right_eq_Icc, Finset.sum_Ico_eq_sum_range]
     simp [S, a, add_comm]
   have hq : S q = 0 := by
@@ -57,6 +58,19 @@ private theorem dirichletZero_partial_sum_bound {q : ℕ} [NeZero q] (χ : Diric
     have h := (hper.nat_mul (n / q)) r
     change S (r + n / q * q) = S r at h
     rwa [show r + n / q * q = n by rw [Nat.mul_comm (n / q) q]; exact Nat.mod_add_div n q] at h
+  exact (hs n).trans (hSr.trans (hs r).symm)
+
+private theorem dirichletZero_partial_sum_bound {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) (n : ℕ) :
+    ‖∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)‖ ≤ (q : ℝ) / 2 := by
+  let a (j : ℕ) := χ ((j : ZMod q) + 1)
+  let S (n : ℕ) := ∑ j ∈ Finset.range n, a j
+  have hs (n : ℕ) : ∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q) = S n := by
+    rw [← Finset.Ico_succ_right_eq_Icc, Finset.sum_Ico_eq_sum_range]
+    simp [S, a, add_comm]
+  have hq : S q = 0 := by rw [← hs, dirichletCharacter_partial_sum_mod χ hχ q]; simp
+  let r := n % q
+  have hr : r < q := Nat.mod_lt _ (NeZero.pos q)
+  have hSr : S n = S r := (hs n).symm.trans ((dirichletCharacter_partial_sum_mod χ hχ n).trans (hs r))
   have hbd (t l : ℕ) : ‖∑ j ∈ Finset.range l, a (t + j)‖ ≤ (l : ℝ) := by
     exact (norm_sum_le _ _).trans ((Finset.sum_le_sum (fun i _ ↦ χ.norm_le_one _)).trans_eq (by simp))
   have hleft : ‖S r‖ ≤ (r : ℝ) := by simpa [S] using hbd 0 r
@@ -67,13 +81,15 @@ private theorem dirichletZero_partial_sum_bound {q : ℕ} [NeZero q] (χ : Diric
       conv_rhs => rw [← Nat.add_sub_of_le hr.le, Finset.sum_range_add]
     rw [eq_neg_of_add_eq_zero_left hsum, norm_neg]
     exact hbd _ _
-  rw [hs, hSr]
+  rw [hs n, hSr]
   rw [Nat.cast_sub hr.le] at hright
   linarith
 
-private theorem dirichletZero_abel_bound {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) {B : ℝ}
+/-- Abel summation gives the integral of the partial character sums throughout
+  the open right half-plane for every nonprincipal character. -/
+theorem dirichletLFunction_eq_abelIntegral {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) {B : ℝ}
     (hB : ∀ n : ℕ, ‖∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)‖ ≤ B)
-    {s : ℂ} (hs : 0 < s.re) : ‖χ.LFunction s / s‖ ≤ B / s.re := by
+    {s : ℂ} (hs : 0 < s.re) : χ.LFunction s = s * ∫ x in Ioi (1 : ℝ), (∑ j ∈ Finset.Icc 1 ⌊x⌋₊, χ (j : ZMod q)) * (x : ℂ)^(-(s+1)) := by
   let P (n : ℕ) := ∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)
   let A : ℝ → ℂ := (Ioi 1).indicator (fun x : ℝ ↦ P ⌊x⌋₊)
   have hB₀ : 0 ≤ B := (norm_nonneg _).trans (hB 0)
@@ -124,8 +140,14 @@ private theorem dirichletZero_abel_bound {q : ℕ} [NeZero q] (χ : DirichletCha
     fun z _ ↦ (DirichletCharacter.differentiable_LFunction hχ).analyticAt z
   have hall := hLa.eqOn_of_preconnected_of_eventuallyEq
     hGa (convex_halfSpace_re_gt 0).isPreconnected (by norm_num : (2 : ℂ) ∈ {z : ℂ | 0 < z.re}) hEq
+  exact (hall hs).trans (congrArg (s * ·) (hI s))
+
+private theorem dirichletZero_abel_bound {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1) {B : ℝ}
+    (hB : ∀ n : ℕ, ‖∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)‖ ≤ B)
+    {s : ℂ} (hs : 0 < s.re) : ‖χ.LFunction s / s‖ ≤ B / s.re := by
+  let P (n : ℕ) := ∑ j ∈ Finset.Icc 1 n, χ (j : ZMod q)
   have hz : s ≠ 0 := fun e ↦ by simp [e] at hs
-  rw [hall hs, show G s / s = mellin A (-s) by dsimp [G]; field_simp, hI]
+  rw [dirichletLFunction_eq_abelIntegral χ hχ hB hs, mul_div_cancel_left₀ _ hz]
   have hi := integrableOn_Ioi_rpow_of_lt (by linarith : -(s.re + 1) < -1) zero_lt_one
   calc
     _ ≤ ∫ x in Ioi (1 : ℝ), ‖P ⌊x⌋₊ * (x : ℂ) ^ (-(s + 1))‖ := norm_integral_le_integral_norm _

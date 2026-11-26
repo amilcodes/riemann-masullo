@@ -386,23 +386,32 @@ theorem fixed_profile_decay {H : ℝ → ℂ} (hH : ContDiff ℝ 1 H) (hc : HasC
   nlinarith [h0 z hz, mul_nonneg (sub_nonneg.mpr (Complex.abs_im_le_norm z))
     (norm_nonneg (bilateralLaplace H z))]
 
+/-- Arbitrary polynomial decay of a fixed smooth compact profile, uniform
+on bounded real strips. Each derivative supplies one height weight. -/
+theorem fixed_profile_rapid_decay (n : ℕ) {H : ℝ → ℂ} (hd : ContDiff ℝ (∞) H)
+    (hc : HasCompactSupport H) (B : ℝ) : ∃ K : ℝ, 0 ≤ K ∧ ∀ z : ℂ, |z.re| ≤ B →
+      ‖bilateralLaplace H z‖ ≤ K / (1+|z.im|)^n := by
+  induction n generalizing H with
+  | zero => simpa only [pow_zero, div_one] using bounded_strip hd.continuous hc B
+  | succ n ih =>
+    obtain ⟨C,hC,h₀⟩ := ih hd hc
+    obtain ⟨D,hD,h₁⟩ := ih (contDiff_infty_iff_deriv.mp hd).2 hc.deriv
+    refine ⟨C+D,add_nonneg hC hD,fun z hz ↦ ?_⟩
+    have ht : 0 < 1+|z.im| := by positivity
+    have h := (le_div_iff₀ (pow_pos ht n)).mp (h₀ z hz)
+    have h' := (le_div_iff₀ (pow_pos ht n)).mp (h₁ z hz)
+    rw [laplace_deriv (hd.of_le (by simp)) hc,norm_mul,norm_neg] at h'
+    have hle := mul_le_mul_of_nonneg_right (Complex.abs_im_le_norm z)
+      (mul_nonneg (norm_nonneg (bilateralLaplace H z)) (pow_nonneg ht.le n))
+    apply (le_div_iff₀ (pow_pos ht _)).mpr
+    rw [pow_succ]
+    linarith only [h,h',hle]
+
 /-- Two integrations by parts give a summable height weight uniformly on a
 bounded real strip, with a constant depending only on the radial profile. -/
 theorem fixed_profile_quadratic_decay {H : ℝ → ℂ} (hd : ContDiff ℝ (∞) H)
     (hc : HasCompactSupport H) (B : ℝ) : ∃ K : ℝ, 0 ≤ K ∧ ∀ z : ℂ, |z.re| ≤ B →
-      ‖bilateralLaplace H z‖ ≤ K / (1+|z.im|)^2 := by
-  have hd₁ : ContDiff ℝ 1 H := hd.of_le (by simp)
-  obtain ⟨C,hC,h₀⟩ := fixed_profile_decay hd₁ hc B
-  obtain ⟨D,hD,h₁⟩ := fixed_profile_decay ((hd.of_le (show (1:WithTop ℕ∞)+1 ≤ ∞ by simp)).deriv') hc.deriv B
-  refine ⟨C+D,add_nonneg hC hD,fun z hz ↦ ?_⟩
-  have ht : 0 < 1 + |z.im| := by positivity
-  have h := (le_div_iff₀ ht).mp (h₀ z hz)
-  have h' := (le_div_iff₀ ht).mp (h₁ z hz)
-  rw [laplace_deriv hd₁ hc, norm_mul, norm_neg] at h'
-  have hle := mul_le_mul_of_nonneg_right (Complex.abs_im_le_norm z)
-    (mul_nonneg (norm_nonneg (bilateralLaplace H z)) ht.le)
-  apply (le_div_iff₀ (sq_pos_of_pos ht)).mpr
-  linarith only [h,h',hle]
+      ‖bilateralLaplace H z‖ ≤ K / (1+|z.im|)^2 := fixed_profile_rapid_decay 2 hd hc B
 
 private theorem separate_log {q T : ℝ} (hq : 1 ≤ q) (hT : 2 ≤ T) :
     Real.log (q * T) ≤ (1 + Real.log q) * Real.log (2 * T) := by

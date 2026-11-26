@@ -28,7 +28,9 @@ local notation "ord(" χ ", " z ")" => completedPrimitiveOrder (χ,z)
 local notation "height(" z ")" => (1+|(z : Zstrip).val.im|)^2
 local notation "sample(" H ", " z ")" => bilateralLaplace H ((z : Zstrip).val-1/2)
 
-private theorem order_eq_analytic {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1)
+/-- For a nonprincipal character the completed primitive multiplicity in the
+open strip is the analytic order of the ordinary L-function at level `q`. -/
+theorem primitiveOrder_eq_analyticOrder {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (hχ : χ ≠ 1)
     (z : Zstrip) : ord(χ,z) = analyticOrderNatAt χ.LFunction z.val := by
   rw [← ordinaryOrder_eq_completedPrimitiveOrder]
   have h := (χ.differentiable_LFunction hχ).analyticAt z.val
@@ -50,14 +52,14 @@ private theorem right_mass_bound {q : ℕ} [NeZero q] (χ : DirichletCharacter �
   have hcomp (ρ : Z) : rightMass χ (e ρ) = (analyticOrderNatAt χ.LFunction ρ.val : ℝ) /
       (1+|ρ.val.im|)^2 := by
     unfold rightMass
-    rw [ite_eq_left (show 1/2 ≤ (e ρ).val.re from ρ.property.1), order_eq_analytic χ hχ]
+    rw [ite_eq_left (show 1/2 ≤ (e ρ).val.re from ρ.property.1), primitiveOrder_eq_analyticOrder χ hχ]
   have hcover : support (rightMass χ) ⊆ range e := by
     intro z hz
     by_cases h : 1/2 ≤ z.val.re
     · refine ⟨⟨z.val,h,z.property.2,?_⟩,rfl⟩
       by_contra hne
       have ho := ((χ.differentiable_LFunction hχ).analyticAt z.val).analyticOrderAt_eq_zero.mpr hne
-      exact hz (by rw [rightMass, ite_eq_left h, order_eq_analytic χ hχ]; simp [analyticOrderNatAt,ho])
+      exact hz (by rw [rightMass, ite_eq_left h, primitiveOrder_eq_analyticOrder χ hχ]; simp [analyticOrderNatAt,ho])
     · exact (hz (by rw [rightMass, ite_eq_right h])).elim
   obtain ⟨hs,hb⟩ := dirichletLFunction_right_halfStrip_height_mass χ hχ
   have hS : Summable (rightMass χ ∘ e) := hs.congr (fun ρ ↦ (hcomp ρ).symm)
