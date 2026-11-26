@@ -75,6 +75,13 @@ def halfTwistStripTrace {α s : ℝ} (hα : 0 ≤ α) (hs : 1 < s) (φ : BruhatC
     spectralStripConvolution_nuclear_of_summable_clusterTraceNorms (1 / 2) hα
       (zero_lt_one.trans hs).le φ⟩
 
+/-- Identify the canonical trace with any nuclear representative of its convolution. -/
+theorem halfTwistStripTrace_eq_hilbertTrace {a s : ℝ} (ha : 0 ≤ a) (hs : 1 < s)
+    (φ : BruhatCompactSupport C𝔽) (T : nuclearEndomorphisms stripQ(ha,hs))
+    (hT : T.val = stripAction(ha,hs,φ)) : halfTwistStripTrace (F := F) ha hs φ = hilbertTrace T := by
+  apply congrArg hilbertTrace
+  exact Subtype.ext hT.symm
+
 private theorem site_interior (χ : PontryaginDual C₁ → PontryaginDual C𝔽) (z : Sites(χ)) :
     |z.val.2.1| < (1 / 2 : ℝ) := by
   let ψ := χ z.val.1

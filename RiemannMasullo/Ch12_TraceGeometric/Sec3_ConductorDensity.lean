@@ -351,14 +351,9 @@ private theorem bounded_strip {H : ℝ → ℂ} (hH : Continuous H) (hc : HasCom
   rw [show (z * x).re = z.re * x by simp]
   exact (le_abs_self _).trans ((abs_mul _ _).le.trans (mul_le_mul_of_nonneg_right hz (abs_nonneg x)))
 
-/-- A single integration by parts gives fixed-profile decay on an arbitrary bounded real strip. -/
-theorem fixed_profile_decay {H : ℝ → ℂ} (hH : ContDiff ℝ 1 H) (hc : HasCompactSupport H) (B : ℝ) :
-    ∃ K : ℝ, 0 ≤ K ∧ ∀ z : ℂ, |z.re| ≤ B →
-    ‖bilateralLaplace H z‖ ≤ K / (1 + |z.im|) := by
+private theorem laplace_deriv {H : ℝ → ℂ} (hH : ContDiff ℝ 1 H) (hc : HasCompactSupport H) (z : ℂ) :
+    bilateralLaplace (deriv H) z = -z * bilateralLaplace H z := by
   have hD := hH.continuous_deriv (by simp)
-  obtain ⟨C, hC, h0⟩ := bounded_strip hH.continuous hc B
-  obtain ⟨D, hD0, h1⟩ := bounded_strip hD hc.deriv B
-  refine ⟨C + D, add_nonneg hC hD0, fun z hz ↦ ?_⟩
   let E := fun x : ℝ ↦ Complex.exp (z * x)
   have hE : Continuous E := by dsimp [E]; fun_prop
   have hE' (x : ℝ) : HasDerivAt E (z * E x) x := by
@@ -371,17 +366,43 @@ theorem fixed_profile_decay {H : ℝ → ℂ} (hH : ContDiff ℝ 1 H) (hc : HasC
     ((hE.mul hD).integrable_of_hasCompactSupport hc.deriv.mul_left)
     (((continuous_const.mul hE).mul hH.continuous).integrable_of_hasCompactSupport hc.mul_left)
     ((hE.mul hH.continuous).integrable_of_hasCompactSupport hc.mul_left)
-  have hparts : bilateralLaplace (deriv H) z = -z * bilateralLaplace H z := by
-    change (∫ x : ℝ, deriv H x * E x) = -z * ∫ x : ℝ, H x * E x
-    calc ∫ x : ℝ, deriv H x * E x
-        = ∫ x : ℝ, E x * deriv H x := by congr 1; funext x; ring
-      _ = -∫ x : ℝ, z * E x * H x := hp
-      _ = _ := by rw [neg_mul, ← integral_const_mul]; congr 2; funext x; ring
+  change (∫ x : ℝ, deriv H x * E x) = -z * ∫ x : ℝ, H x * E x
+  calc ∫ x : ℝ, deriv H x * E x
+      = ∫ x : ℝ, E x * deriv H x := by congr 1; funext x; ring
+    _ = -∫ x : ℝ, z * E x * H x := hp
+    _ = _ := by rw [neg_mul, ← integral_const_mul]; congr 2; funext x; ring
+
+/-- A single integration by parts gives fixed-profile decay on an arbitrary bounded real strip. -/
+theorem fixed_profile_decay {H : ℝ → ℂ} (hH : ContDiff ℝ 1 H) (hc : HasCompactSupport H) (B : ℝ) :
+    ∃ K : ℝ, 0 ≤ K ∧ ∀ z : ℂ, |z.re| ≤ B →
+    ‖bilateralLaplace H z‖ ≤ K / (1 + |z.im|) := by
+  have hD := hH.continuous_deriv (by simp)
+  obtain ⟨C, hC, h0⟩ := bounded_strip hH.continuous hc B
+  obtain ⟨D, hD0, h1⟩ := bounded_strip hD hc.deriv B
+  refine ⟨C + D, add_nonneg hC hD0, fun z hz ↦ ?_⟩
   have hder := h1 z hz
-  rw [hparts, norm_mul, norm_neg] at hder
+  rw [laplace_deriv hH hc, norm_mul, norm_neg] at hder
   apply (le_div_iff₀ (by positivity)).mpr
   nlinarith [h0 z hz, mul_nonneg (sub_nonneg.mpr (Complex.abs_im_le_norm z))
     (norm_nonneg (bilateralLaplace H z))]
+
+/-- Two integrations by parts give a summable height weight uniformly on a
+bounded real strip, with a constant depending only on the radial profile. -/
+theorem fixed_profile_quadratic_decay {H : ℝ → ℂ} (hd : ContDiff ℝ (∞) H)
+    (hc : HasCompactSupport H) (B : ℝ) : ∃ K : ℝ, 0 ≤ K ∧ ∀ z : ℂ, |z.re| ≤ B →
+      ‖bilateralLaplace H z‖ ≤ K / (1+|z.im|)^2 := by
+  have hd₁ : ContDiff ℝ 1 H := hd.of_le (by simp)
+  obtain ⟨C,hC,h₀⟩ := fixed_profile_decay hd₁ hc B
+  obtain ⟨D,hD,h₁⟩ := fixed_profile_decay ((hd.of_le (show (1:WithTop ℕ∞)+1 ≤ ∞ by simp)).deriv') hc.deriv B
+  refine ⟨C+D,add_nonneg hC hD,fun z hz ↦ ?_⟩
+  have ht : 0 < 1 + |z.im| := by positivity
+  have h := (le_div_iff₀ ht).mp (h₀ z hz)
+  have h' := (le_div_iff₀ ht).mp (h₁ z hz)
+  rw [laplace_deriv hd₁ hc, norm_mul, norm_neg] at h'
+  have hle := mul_le_mul_of_nonneg_right (Complex.abs_im_le_norm z)
+    (mul_nonneg (norm_nonneg (bilateralLaplace H z)) ht.le)
+  apply (le_div_iff₀ (sq_pos_of_pos ht)).mpr
+  linarith only [h,h',hle]
 
 private theorem separate_log {q T : ℝ} (hq : 1 ≤ q) (hT : 2 ≤ T) :
     Real.log (q * T) ≤ (1 + Real.log q) * Real.log (2 * T) := by

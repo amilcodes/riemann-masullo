@@ -28,7 +28,9 @@ local notation "Cℚ" => IdeleClassGroup (𝓞 ℚ) ℚ
 local notation "Zstrip" => {z : ℂ // 0 < z.re ∧ z.re < 1}
 local notation "G(" a ", " H ")" => shiftedProfile a H
 
-private theorem shifted_hasSum {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (a : ℝ)
+/-- The completed primitive zero sum at a real Mellin shift includes the
+principal polar moments and the primitive prime and parity terms. -/
+theorem hasSum_shifted_primitive_positiveLog {q : ℕ} [NeZero q] (χ : DirichletCharacter ℂ q) (a : ℝ)
     (H : ℝ → ℂ) (hd : ContDiff ℝ (∞) H) (hc : HasCompactSupport H) (hp : tsupport H ⊆ Ioi 0) :
     HasSum (fun z : Zstrip ↦ (completedPrimitiveOrder (χ, z) : ℂ) * bilateralLaplace H (z.val - a))
       ((if χ = 1 then bilateralLaplace H (-a) + bilateralLaplace H (1-a) else 0) +
@@ -54,7 +56,7 @@ theorem physicalFull_eq_poles_add_primeAndArchRow (q : ℕ) [NeZero q] (r : (ZMo
       (bilateralLaplace H (-a) + bilateralLaplace H (1-a)) / q.totient +
       cylinderAverage q r (primeAndArchRow G(a, H) (archTerm 0 G(a, H)) (archTerm 1 G(a, H))) := by
   rw [physicalWidthSum_eq q r H hd.continuous φ hφ _ _ (by simp)]
-  simp_rw [(shifted_hasSum _ a H hd hc hp).tsum_eq]
+  simp_rw [(hasSum_shifted_primitive_positiveLog _ a H hd hc hp).tsum_eq]
   rw [← principal_average q r, ← map_add]
   rfl
 
@@ -130,7 +132,7 @@ theorem physicalFull_sub_retained (q : ℕ) [NeZero q] (r : (ZMod q)ˣ) (a s : �
     physicalCenteredRetained_eq q r H hd.continuous φ hφ, ← map_sub]
   congr 1
   funext χ
-  have hfull := (shifted_hasSum χ (1/2) H hd hc hp).summable
+  have hfull := (hasSum_shifted_primitive_positiveLog χ (1/2) H hd hc hp).summable
   simp only [Complex.ofReal_div, Complex.ofReal_one, Complex.ofReal_ofNat] at hfull ⊢
   have hkeep : Summable (fun z : Zstrip ↦ (ret(a,s,(χ,z)) : ℂ) * sample(H,z)) := by
     apply hfull.norm.of_norm_bounded
